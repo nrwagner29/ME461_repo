@@ -13,4 +13,6 @@
 	<templateProperties value="id=LABstarter.projectspec.LABstarter"/>
 	<origin value="C:\neilrw2_dkim305\ME461_repo\C2000Ware_4_01_00_00\device_support\f2837xd\examples\cpu1\LABstarter\cpu01\ccs\LABstarter.projectspec"/>
 	<filesToOpen value=""/>
+	<connection value="common/targetdb/connections/TIXDS100v2_Connection.xml"/>
+	<isTargetManual value="false"/>
 </projectOptions>

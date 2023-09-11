@@ -26,7 +26,6 @@
 // The Launchpad's CPU Frequency set to 200 you should not change this value
 #define LAUNCHPAD_CPU_FREQUENCY 200
 
-
 // Interrupt Service Routines predefinition
 __interrupt void cpu_timer0_isr(void);
 __interrupt void cpu_timer1_isr(void);
@@ -39,7 +38,8 @@ uint32_t numSWIcalls = 0;
 extern uint32_t numRXA;
 uint16_t UARTPrint = 0;
 uint16_t LEDdisplaynum = 0;
-uint32_t
+uint32_t Timer2count = 0;
+int16_t RS = 0;
 
 void main(void)
 {
@@ -48,93 +48,93 @@ void main(void)
     InitSysCtrl();
 
     InitGpio();
-	
-	// Blue LED on LaunchPad
+
+    // Blue LED on LaunchPad
     GPIO_SetupPinMux(31, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(31, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPASET.bit.GPIO31 = 1;
 
-	// Red LED on LaunchPad
+    // Red LED on LaunchPad
     GPIO_SetupPinMux(34, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(34, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPBSET.bit.GPIO34 = 1;
 
-	// LED1 and PWM Pin
+    // LED1 and PWM Pin
     GPIO_SetupPinMux(22, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(22, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPACLEAR.bit.GPIO22 = 1;
-	
-	// LED2
+
+    // LED2
     GPIO_SetupPinMux(94, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(94, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPCCLEAR.bit.GPIO94 = 1;
 
-	// LED3
+    // LED3
     GPIO_SetupPinMux(95, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(95, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPCCLEAR.bit.GPIO95 = 1;
 
-	// LED4
+    // LED4
     GPIO_SetupPinMux(97, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(97, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPDCLEAR.bit.GPIO97 = 1;
 
-	// LED5
+    // LED5
     GPIO_SetupPinMux(111, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(111, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPDCLEAR.bit.GPIO111 = 1;
 
-	// LED6
+    // LED6
     GPIO_SetupPinMux(130, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(130, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPECLEAR.bit.GPIO130 = 1;
 
-	// LED7	
+    // LED7
     GPIO_SetupPinMux(131, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(131, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPECLEAR.bit.GPIO131 = 1;
 
-	// LED8
+    // LED8
     GPIO_SetupPinMux(25, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(25, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPACLEAR.bit.GPIO25 = 1;
 
-	// LED9
+    // LED9
     GPIO_SetupPinMux(26, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(26, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPACLEAR.bit.GPIO26 = 1;
 
-	// LED10
+    // LED10
     GPIO_SetupPinMux(27, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(27, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPACLEAR.bit.GPIO27 = 1;
 
-	// LED11	
+    // LED11
     GPIO_SetupPinMux(60, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(60, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPBCLEAR.bit.GPIO60 = 1;
 
-	// LED12	
+    // LED12
     GPIO_SetupPinMux(61, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(61, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPBCLEAR.bit.GPIO61 = 1;
 
-	// LED13
+    // LED13
     GPIO_SetupPinMux(157, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(157, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPECLEAR.bit.GPIO157 = 1;
 
-	// LED14
+    // LED14
     GPIO_SetupPinMux(158, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(158, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPECLEAR.bit.GPIO158 = 1;
-	
-	// LED15
+
+    // LED15
     GPIO_SetupPinMux(159, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(159, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPECLEAR.bit.GPIO159 = 1;
 
-	// LED16
+    // LED16
     GPIO_SetupPinMux(160, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(160, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPFCLEAR.bit.GPIO160 = 1;
@@ -149,7 +149,7 @@ void main(void)
     GPIO_SetupPinOptions(1, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPASET.bit.GPIO1 = 1;
 
-	//SPIRAM  CS  Chip Select
+    //SPIRAM  CS  Chip Select
     GPIO_SetupPinMux(19, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(19, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPASET.bit.GPIO19 = 1;
@@ -168,17 +168,17 @@ void main(void)
     GPIO_SetupPinMux(9, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(9, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPASET.bit.GPIO9 = 1;
-	
+
     //MPU9250  CS  Chip Select
     GPIO_SetupPinMux(66, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(66, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPCSET.bit.GPIO66 = 1;
-	
-	//WIZNET  CS  Chip Select
+
+    //WIZNET  CS  Chip Select
     GPIO_SetupPinMux(125, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(125, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPDSET.bit.GPIO125 = 1;
-	
+
     //PushButton 1
     GPIO_SetupPinMux(4, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(4, GPIO_INPUT, GPIO_PULLUP);
@@ -194,11 +194,10 @@ void main(void)
     //PushButton 4
     GPIO_SetupPinMux(7, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(7, GPIO_INPUT, GPIO_PULLUP);
-	
-	//Joy Stick Pushbutton
+
+    //Joy Stick Pushbutton
     GPIO_SetupPinMux(8, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(8, GPIO_INPUT, GPIO_PULLUP);
-
 
     // Clear all interrupts and initialize PIE vector table:
     // Disable CPU interrupts
@@ -224,7 +223,8 @@ void main(void)
 
     // Interrupts that are used in this example are re-mapped to
     // ISR functions found within this project
-    EALLOW;  // This is needed to write to EALLOW protected registers
+    EALLOW;
+    // This is needed to write to EALLOW protected registers
     PieVectTable.TIMER0_INT = &cpu_timer0_isr;
     PieVectTable.TIMER1_INT = &cpu_timer1_isr;
     PieVectTable.TIMER2_INT = &cpu_timer2_isr;
@@ -238,8 +238,8 @@ void main(void)
     PieVectTable.SCID_TX_INT = &TXDINT_data_sent;
 
     PieVectTable.EMIF_ERROR_INT = &SWI_isr;
-    EDIS;    // This is needed to disable write to EALLOW protected registers
-
+    EDIS;
+    // This is needed to disable write to EALLOW protected registers
 
     // Initialize the CpuTimers Device Peripheral. This function can be
     // found in F2837xD_CpuTimers.c
@@ -256,7 +256,7 @@ void main(void)
 //    CpuTimer1Regs.TCR.all = 0x4000;
     CpuTimer2Regs.TCR.all = 0x4000;
 
-	init_serialSCIA(&SerialA,115200);
+    init_serialSCIA(&SerialA, 115200);
 
     // Enable CPU int1 which is connected to CPU-Timer 0, CPU int13
     // which is connected to CPU-Timer 1, and CPU int 14, which is connected
@@ -270,89 +270,105 @@ void main(void)
 
     // Enable TINT0 in the PIE: Group 1 interrupt 7
     PieCtrlRegs.PIEIER1.bit.INTx7 = 1;
-	// Enable SWI in the PIE: Group 12 interrupt 9
+    // Enable SWI in the PIE: Group 12 interrupt 9
     PieCtrlRegs.PIEIER12.bit.INTx9 = 1;
-	
-	init_serialSCIB(&SerialB,115200);
-	init_serialSCIC(&SerialC,115200);
-	init_serialSCID(&SerialD,115200);
-    // Enable global Interrupts and higher priority real-time debug events
-    EINT;  // Enable Global interrupt INTM
-    ERTM;  // Enable Global realtime interrupt DBGM
 
-    
+    init_serialSCIB(&SerialB, 115200);
+    init_serialSCIC(&SerialC, 115200);
+    init_serialSCID(&SerialD, 115200);
+    // Enable global Interrupts and higher priority real-time debug events
+    EINT;
+    // Enable Global interrupt INTM
+    ERTM;
+    // Enable Global realtime interrupt DBGM
+
     // IDLE loop. Just sit and loop forever (optional):
-    while(1)
+    while (1)
     {
-        if (UARTPrint == 1 ) {
-			serial_printf(&SerialA,"Num Timer2:%ld Num SerialRX: %ld\r\n",CpuTimer2.InterruptCount,numRXA);
+        RS = ReadSwitches();
+        SetLEDRowsOnOff(Timer2count);
+        if (UARTPrint == 1)
+        {
+            serial_printf(&SerialA, "Num Timer2:%ld Num SerialRX: %ld\r\n",
+                          Timer2count, numRXA);
             UARTPrint = 0;
         }
     }
 }
 
-
 // Row LED ON/OFF Function
-void SetLEDRowsOnOff(int16_t rows) {
+void SetLEDRowsOnOff(int16_t rows)
+{
     // ROW 1 Off Use SET.bit for On and TOGGLE.bit fto toggle On/Off
     //ROW1
-    if ((rows & 0x1) == 0x1) {
+    if ((rows & 0x1) == 0x1)
+    {
         GpioDataRegs.GPASET.bit.GPIO22 = 1;
         GpioDataRegs.GPESET.bit.GPIO130 = 1;
         GpioDataRegs.GPBSET.bit.GPIO60 = 1;
     }
-    if ((rows & 0x1) == 0x0) {
+    if ((rows & 0x1) == 0x0)
+    {
         GpioDataRegs.GPACLEAR.bit.GPIO22 = 1;
         GpioDataRegs.GPECLEAR.bit.GPIO130 = 1;
         GpioDataRegs.GPBCLEAR.bit.GPIO60 = 1;
     }
     //ROW2
-    if ((rows & 0x2) == 0x2) {
+    if ((rows & 0x2) == 0x2)
+    {
         GpioDataRegs.GPCSET.bit.GPIO94 = 1;
         GpioDataRegs.GPESET.bit.GPIO131 = 1;
         GpioDataRegs.GPBSET.bit.GPIO61 = 1;
     }
-    if ((rows & 0x2) == 0x0) {
+    if ((rows & 0x2) == 0x0)
+    {
         GpioDataRegs.GPCCLEAR.bit.GPIO94 = 1;
         GpioDataRegs.GPECLEAR.bit.GPIO131 = 1;
         GpioDataRegs.GPBCLEAR.bit.GPIO61 = 1;
     }
     //ROW3
-    if ((rows & 0x4) == 0x4) {
+    if ((rows & 0x4) == 0x4)
+    {
         GpioDataRegs.GPCSET.bit.GPIO95 = 1;
         GpioDataRegs.GPASET.bit.GPIO25 = 1;
         GpioDataRegs.GPESET.bit.GPIO157 = 1;
     }
-    if ((rows & 0x4) == 0x0) {
+    if ((rows & 0x4) == 0x0)
+    {
         GpioDataRegs.GPCCLEAR.bit.GPIO95 = 1;
         GpioDataRegs.GPACLEAR.bit.GPIO25 = 1;
         GpioDataRegs.GPECLEAR.bit.GPIO157 = 1;
     }
     //ROW4
-    if ((rows & 0x8) == 0x8) {
+    if ((rows & 0x8) == 0x8)
+    {
         GpioDataRegs.GPDSET.bit.GPIO97 = 1;
         GpioDataRegs.GPASET.bit.GPIO26 = 1;
         GpioDataRegs.GPESET.bit.GPIO158 = 1;
     }
-    if ((rows & 0x8) == 0x0) {
+    if ((rows & 0x8) == 0x0)
+    {
         GpioDataRegs.GPDCLEAR.bit.GPIO97 = 1;
         GpioDataRegs.GPACLEAR.bit.GPIO26 = 1;
         GpioDataRegs.GPECLEAR.bit.GPIO158 = 1;
     }
     //ROW5
-    if ((rows & 0x10) == 0x10) {
+    if ((rows & 0x10) == 0x10)
+    {
         GpioDataRegs.GPDSET.bit.GPIO111 = 1;
         GpioDataRegs.GPASET.bit.GPIO27 = 1;
         GpioDataRegs.GPESET.bit.GPIO159 = 1;
     }
-    if ((rows & 0x10) == 0x0) {
+    if ((rows & 0x10) == 0x0)
+    {
         GpioDataRegs.GPDCLEAR.bit.GPIO111 = 1;
         GpioDataRegs.GPACLEAR.bit.GPIO27 = 1;
         GpioDataRegs.GPECLEAR.bit.GPIO159 = 1;
     }
 }
 
-int16_t ReadSwitches(void) {
+int16_t ReadSwitches(void)
+{
     int16_t sw = 0;
 
     if (GpioDataRegs.GPADAT.bit.GPIO4 == 0)
@@ -376,23 +392,22 @@ int16_t ReadSwitches(void) {
 
 }
 
-
 // SWI_isr,  Using this interrupt as a Software started interrupt
-__interrupt void SWI_isr(void) {
+__interrupt void SWI_isr(void)
+{
 
     // These three lines of code allow SWI_isr, to be interrupted by other interrupt functions
-	// making it lower priority than all other Hardware interrupts.  
-	PieCtrlRegs.PIEACK.all = PIEACK_GROUP12;
-    asm("       NOP");                    // Wait one cycle
-    EINT;                                 // Clear INTM to enable interrupts
-	
-	
-	
+    // making it lower priority than all other Hardware interrupts.
+    PieCtrlRegs.PIEACK.all = PIEACK_GROUP12;
+    asm("       NOP");
+    // Wait one cycle
+    EINT;
+    // Clear INTM to enable interrupts
+
     // Insert SWI ISR Code here.......
-	
-	
+
     numSWIcalls++;
-    
+
     DINT;
 
 }
@@ -408,19 +423,21 @@ __interrupt void cpu_timer0_isr(void)
 //        PieCtrlRegs.PIEIFR12.bit.INTx9 = 1;  // Manually cause the interrupt for the SWI
 //    }
 
-    if ((numTimer0calls%25) == 0) {
+    if ((numTimer0calls % 25) == 0)
+    {
         displayLEDletter(LEDdisplaynum);
         LEDdisplaynum++;
-        if (LEDdisplaynum == 0xFFFF) {  // prevent roll over exception
+        if (LEDdisplaynum == 0xFFFF)
+        {  // prevent roll over exception
             LEDdisplaynum = 0;
         }
     }
 
-    if ((numTimer0calls%50) == 0) {
-		// Blink LaunchPad Red LED
-		GpioDataRegs.GPBTOGGLE.bit.GPIO34 = 1;
+    if ((numTimer0calls % 50) == 0)
+    {
+        // Blink LaunchPad Red LED
+        GpioDataRegs.GPBTOGGLE.bit.GPIO34 = 1;
     }
-
 
     // Acknowledge this interrupt to receive more interrupts from group 1
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
@@ -429,20 +446,25 @@ __interrupt void cpu_timer0_isr(void)
 // cpu_timer1_isr - CPU Timer1 ISR
 __interrupt void cpu_timer1_isr(void)
 {
-		
+
     CpuTimer1.InterruptCount++;
 }
 
 // cpu_timer2_isr CPU Timer2 ISR
 __interrupt void cpu_timer2_isr(void)
 {
-	// Blink LaunchPad Blue LED
+    // Blink LaunchPad Blue LED
     GpioDataRegs.GPATOGGLE.bit.GPIO31 = 1;
 
     CpuTimer2.InterruptCount++;
-	
-	if ((CpuTimer2.InterruptCount % 10) == 0) {
-		UARTPrint = 1;
-	}
+    if ((CpuTimer2.InterruptCount % 10) == 0)
+    {
+        UARTPrint = 1;
+    }
+    if ((ReadSwitches() & 0x6) == 0x6)
+        {
+        }
+    else
+        Timer2count++;
 }
 

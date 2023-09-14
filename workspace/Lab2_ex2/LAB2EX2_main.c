@@ -41,6 +41,12 @@ uint16_t LEDdisplaynum = 0;
 uint32_t Timer2count = 0;
 int16_t RS = 0;
 
+/* Lab02 Ex5_3 */
+float x1 = 6.0;
+float x2 = 2.3;
+float x3 = 7.3;
+float x4 = 7.1;
+
 void main(void)
 {
     // PLL, WatchDog, enable Peripheral Clocks
@@ -249,7 +255,7 @@ void main(void)
     // 200MHz CPU Freq,                       Period (in uSeconds)
     ConfigCpuTimer(&CpuTimer0, LAUNCHPAD_CPU_FREQUENCY, 10000);
     ConfigCpuTimer(&CpuTimer1, LAUNCHPAD_CPU_FREQUENCY, 20000);
-    ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 250000);
+    ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 1000); // 1ms
 
     // Enable CpuTimer Interrupt bit TIE
 //    CpuTimer0Regs.TCR.all = 0x4000;
@@ -289,7 +295,7 @@ void main(void)
         SetLEDRowsOnOff(Timer2count);
         if (UARTPrint == 1)
         {
-            serial_printf(&SerialA, "Num Timer2:%ld Num SerialRX: %ld\r\n",
+            serial_printf(&SerialA, "Num Timer2:%ld NumSerialRX: %ld\r\n",
                           Timer2count, numRXA);
             UARTPrint = 0;
         }
@@ -419,10 +425,6 @@ __interrupt void cpu_timer0_isr(void)
 
     numTimer0calls++;
 
-//    if ((numTimer0calls%50) == 0) {
-//        PieCtrlRegs.PIEIFR12.bit.INTx9 = 1;  // Manually cause the interrupt for the SWI
-//    }
-
     if ((numTimer0calls % 25) == 0)
     {
         displayLEDletter(LEDdisplaynum);
@@ -457,7 +459,8 @@ __interrupt void cpu_timer2_isr(void)
     GpioDataRegs.GPATOGGLE.bit.GPIO31 = 1;
 
     CpuTimer2.InterruptCount++;
-    if ((CpuTimer2.InterruptCount % 10) == 0)
+
+    if ((CpuTimer2.InterruptCount % 100) == 0)
     {
         UARTPrint = 1;
     }
@@ -466,5 +469,11 @@ __interrupt void cpu_timer2_isr(void)
         }
     else
         Timer2count++;
-}
 
+    x4 = x3 + 2.0;
+    x3 = x4 + 1.3;
+    x1 = 9 * x2;
+    x2 = 34 * x3;
+    /*Complier Error*/
+    //x5 = x1 * 461
+}

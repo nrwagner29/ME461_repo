@@ -2,6 +2,7 @@
 // FILE:   LABstarter_main.c
 //
 // TITLE:  Lab Starter
+// Initals Used : NRW & ADK
 //#############################################################################
 
 // Included Files
@@ -41,7 +42,8 @@ uint16_t LEDdisplaynum = 0;
 uint32_t Timer2count = 0;
 int16_t RS = 0;
 
-/* Lab02 Ex5_3 */
+/* Lab02 Ex3 */
+// NRW & ADK - introducing dummy variables for error analysis
 float x1 = 6.0;
 float x2 = 2.3;
 float x3 = 7.3;
@@ -256,6 +258,10 @@ void main(void)
     ConfigCpuTimer(&CpuTimer0, LAUNCHPAD_CPU_FREQUENCY, 10000);
     ConfigCpuTimer(&CpuTimer1, LAUNCHPAD_CPU_FREQUENCY, 20000);
     ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 1000); // 1ms
+    /* Lab02 Ex4 */
+    // NRW & ADK changed the Timer2 to count every 1ms = 1000us which is a frequency of 1KHz
+
+
 
     // Enable CpuTimer Interrupt bit TIE
 //    CpuTimer0Regs.TCR.all = 0x4000;
@@ -291,22 +297,24 @@ void main(void)
     // IDLE loop. Just sit and loop forever (optional):
     while (1)
     {
-        RS = ReadSwitches();
-        SetLEDRowsOnOff(Timer2count);
+        SetLEDRowsOnOff(Timer2count); /* Lab02 Ex2 */ //NRW & ADK Setting LED for updating the active Timer2count by 1KHz
         if (UARTPrint == 1)
         {
             serial_printf(&SerialA, "Num Timer2:%ld NumSerialRX: %ld\r\n",
-                          Timer2count, numRXA);
+                          Timer2count, numRXA); /* Lab02 Ex2 */ // NRW & ADK - Using %ld for 32bit integer variables that was defined above
             UARTPrint = 0;
         }
     }
 }
 
 // Row LED ON/OFF Function
+// NRW & ADK - This function is to check the registers for the rows targeting to do bitwise operation.
 void SetLEDRowsOnOff(int16_t rows)
 {
     // ROW 1 Off Use SET.bit for On and TOGGLE.bit fto toggle On/Off
-    //ROW1
+
+    /* Lab02 Ex2 */
+    //ROW1 - NRW & ADK Check if the LED is ON/OFF (rows & 0x1) -> indicating row 1
     if ((rows & 0x1) == 0x1)
     {
         GpioDataRegs.GPASET.bit.GPIO22 = 1;
@@ -319,7 +327,7 @@ void SetLEDRowsOnOff(int16_t rows)
         GpioDataRegs.GPECLEAR.bit.GPIO130 = 1;
         GpioDataRegs.GPBCLEAR.bit.GPIO60 = 1;
     }
-    //ROW2
+    //ROW2 - NRW & ADK Check if the LED is ON/OFF (rows & 0x2) -> indicating row 2
     if ((rows & 0x2) == 0x2)
     {
         GpioDataRegs.GPCSET.bit.GPIO94 = 1;
@@ -332,7 +340,7 @@ void SetLEDRowsOnOff(int16_t rows)
         GpioDataRegs.GPECLEAR.bit.GPIO131 = 1;
         GpioDataRegs.GPBCLEAR.bit.GPIO61 = 1;
     }
-    //ROW3
+    //ROW3  - NRW & ADK Check if the LED is ON/OFF (rows & 0x4) -> indicating row 3
     if ((rows & 0x4) == 0x4)
     {
         GpioDataRegs.GPCSET.bit.GPIO95 = 1;
@@ -345,7 +353,7 @@ void SetLEDRowsOnOff(int16_t rows)
         GpioDataRegs.GPACLEAR.bit.GPIO25 = 1;
         GpioDataRegs.GPECLEAR.bit.GPIO157 = 1;
     }
-    //ROW4
+    //ROW4  - NRW & ADK Check if the LED is ON/OFF (rows & 0x8) -> indicating row 4
     if ((rows & 0x8) == 0x8)
     {
         GpioDataRegs.GPDSET.bit.GPIO97 = 1;
@@ -358,7 +366,7 @@ void SetLEDRowsOnOff(int16_t rows)
         GpioDataRegs.GPACLEAR.bit.GPIO26 = 1;
         GpioDataRegs.GPECLEAR.bit.GPIO158 = 1;
     }
-    //ROW5
+    //ROW5 - NRW & ADK Check if the LED is ON/OFF (rows & 0x10) -> indicating row 5. *Note that 0x10 is 10000 in binary .
     if ((rows & 0x10) == 0x10)
     {
         GpioDataRegs.GPDSET.bit.GPIO111 = 1;
@@ -373,6 +381,9 @@ void SetLEDRowsOnOff(int16_t rows)
     }
 }
 
+/* Lab02 Ex1 */
+// NRW & ADK - For ReadSwitches function, we are initializing our own register then reading the buttons for ON/OFF (0/1). Once checked if ON/OFF, we update
+//               the register with new bits, using bitwise operation OR to set.
 int16_t ReadSwitches(void)
 {
     int16_t sw = 0;
@@ -462,18 +473,24 @@ __interrupt void cpu_timer2_isr(void)
 
     if ((CpuTimer2.InterruptCount % 100) == 0)
     {
-        UARTPrint = 1;
+        UARTPrint = 1; /* Lab02 Ex4 */ // NRW & ADK The modulus 100 will print the text in TeraTerm every 100 counts.
     }
     if ((ReadSwitches() & 0x6) == 0x6)
         {
         }
     else
-        Timer2count++;
+        Timer2count++; /* Lab02 Ex2 */ // NRW & ADK - We are checking if the buttons are pressed, and if so we run the if statement which does not run the else statement.
+                       // If the buttons are pressed, the else statement is executed and incrementing the Timer2count by 1.
 
+    /* Lab02 Ex3 */ // NRW & ADK If the breakpoint is set on line 478 where Timer2count++; is located, the code will halt at that point thus will results in incrementing Timer2Count
+    // via the activation of the breakpoint.
+
+    /* Lab02 Ex3 */
+    // NRW & ADK - introducing dummy function for error analysis
     x4 = x3 + 2.0;
     x3 = x4 + 1.3;
     x1 = 9 * x2;
     x2 = 34 * x3;
-    /*Complier Error*/
+    /*Complier Error*/ //If enabled, shows error sign on the line# column and when double clicked it will route to the line of error.
     //x5 = x1 * 461
 }

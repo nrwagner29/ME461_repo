@@ -40,7 +40,9 @@ extern uint32_t numRXA;
 uint16_t UARTPrint = 0;
 uint16_t LEDdisplaynum = 0;
 float controleff = 0;
+float angeff = 0;
 uint16_t Flip = 0;
+uint16_t AFlip = 0;
 
 void main(void)
 {
@@ -249,7 +251,8 @@ void main(void)
     // Configure CPU-Timer 0, 1, and 2 to interrupt every given period:
     // 200MHz CPU Freq,                       Period (in uSeconds)
     ConfigCpuTimer(&CpuTimer0, LAUNCHPAD_CPU_FREQUENCY, 10000);
-    ConfigCpuTimer(&CpuTimer1, LAUNCHPAD_CPU_FREQUENCY, 20000);
+    // ConfigCpuTimer(&CpuTimer1, LAUNCHPAD_CPU_FREQUENCY, 125000); // HappyBirthday
+    ConfigCpuTimer(&CpuTimer1, LAUNCHPAD_CPU_FREQUENCY, 70000); // Zelda
     ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 1000);
 
     // Enable CpuTimer Interrupt bit TIE
@@ -287,14 +290,14 @@ void main(void)
     EPwm2Regs.TBPHS.bit.TBPHS = 0;
 
     //EPwm8
-    EPwm8Regs.TBCTL.bit.CLKDIV = 0;
+    EPwm8Regs.TBCTL.bit.CLKDIV = 4;// divide by 16 (100)
     EPwm8Regs.TBCTL.bit.FREE_SOFT= 3;
     EPwm8Regs.TBCTL.bit.CTRMODE = 0;
     EPwm8Regs.TBCTL.bit.PHSEN = 0;
     EPwm8Regs.TBCTR = 0;
-    EPwm8Regs.TBPRD = 2500; // NRW ADK
-    EPwm8Regs.CMPA.bit.CMPA = 0;
-    EPwm8Regs.CMPB.bit.CMPB = 0;
+    EPwm8Regs.TBPRD = 62500; // NRW ADK  50Mhz/50hz/16
+    EPwm8Regs.CMPA.bit.CMPA = 5000;
+    EPwm8Regs.CMPB.bit.CMPB = 5000;
     EPwm8Regs.AQCTLA.bit.ZRO = 2;
     EPwm8Regs.AQCTLA.bit.CAU = 1;
     EPwm8Regs.AQCTLB.bit.ZRO = 2;
@@ -302,15 +305,15 @@ void main(void)
     EPwm8Regs.TBPHS.bit.TBPHS = 0;
 
     //EPwm9
-    EPwm9Regs.TBCTL.bit.CLKDIV = 0;
+    EPwm9Regs.TBCTL.bit.CLKDIV = 1;
     EPwm9Regs.TBCTL.bit.FREE_SOFT= 3;
     EPwm9Regs.TBCTL.bit.CTRMODE = 0;
     EPwm9Regs.TBCTL.bit.PHSEN = 0;
     EPwm9Regs.TBCTR = 0;
     EPwm9Regs.TBPRD = 2500; // NRW ADK
-    EPwm9Regs.CMPA.bit.CMPA = 0;
-    EPwm9Regs.AQCTLA.bit.ZRO = 2;
-    EPwm9Regs.AQCTLA.bit.CAU = 1;
+    //EPwm9Regs.CMPA.bit.CMPA = 0;
+    EPwm9Regs.AQCTLA.bit.ZRO = 3;
+    EPwm9Regs.AQCTLA.bit.CAU = 0;
     EPwm9Regs.TBPHS.bit.TBPHS = 0;
 
     //EPwm12 GPIO->PinMux
@@ -354,9 +357,10 @@ void main(void)
     // Enable SWI in the PIE: Group 12 interrupt 9
     PieCtrlRegs.PIEIER12.bit.INTx9 = 1;
 
-    init_serialSCIB(&SerialB,115200);
+//    init_serialSCIB(&SerialB,115200);
     init_serialSCIC(&SerialC,115200);
     init_serialSCID(&SerialD,115200);
+
     // Enable global Interrupts and higher priority real-time debug events
     EINT;  // Enable Global interrupt INTM
     ERTM;  // Enable Global realtime interrupt DBGM
@@ -425,7 +429,7 @@ __interrupt void cpu_timer0_isr(void)
 // cpu_timer1_isr - CPU Timer1 ISR
 __interrupt void cpu_timer1_isr(void)
 {
-
+    EPwm9Regs.TBPRD = songarray[CpuTimer1.InterruptCount];
     CpuTimer1.InterruptCount++;
 }
 
@@ -469,6 +473,47 @@ void setEPWM2B(float controleffort)
     return;
 }
 
+void setEPWM8A_RCServo(float angle)
+{
+    uint16_t angout;
+
+    if (angle < -90)
+    {
+        angle = -90;
+    }
+    if (angle > 90)
+    {
+        angle = 90;
+    }
+
+    angout = (((angle) + 90.0)/180.0) * EPwm8Regs.TBPRD*.08 + .04*EPwm8Regs.TBPRD; //NRW ADK - Normalizing
+
+    EPwm8Regs.CMPA.bit.CMPA = angout;
+
+    return;
+}
+void setEPWM8B_RCServo(float angle)
+{
+    uint16_t angout;
+
+    if (angle < -90)
+    {
+        angle = -90;
+    }
+    if (angle > 90)
+    {
+        angle = 90;
+    }
+
+    angout = (((angle) + 90.0)/180.0) * EPwm8Regs.TBPRD*.08 + .04*EPwm8Regs.TBPRD;
+
+    EPwm8Regs.CMPB.bit.CMPB = angout;
+
+    return;
+}
+
+
+
 // cpu_timer2_isr CPU Timer2 ISR
 __interrupt void cpu_timer2_isr(void)
 {
@@ -499,6 +544,29 @@ __interrupt void cpu_timer2_isr(void)
         setEPWM2A(controleff);
         setEPWM2B(controleff);
     }
+    // NRW ADK
+    if (angeff <= -90.0)
+    {
+        AFlip = 0;
+    }
+    if (angeff >= 90.0)
+    {
+        AFlip = 1;
+    }
+    if (AFlip == 0)
+    {
+        angeff+=.05;
+        setEPWM8A_RCServo(angeff);
+        setEPWM8B_RCServo(angeff);
+    }
+    if (AFlip == 1)
+    {
+        angeff-=.05;
+        setEPWM8A_RCServo(angeff);
+        setEPWM8B_RCServo(angeff);
+    }
 }
+
+
 
 

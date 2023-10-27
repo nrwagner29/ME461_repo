@@ -1,7 +1,7 @@
 //#############################################################################
-// FILE:   LABstarter_main.c
+// FILE:   LABHW3_main.c
 //
-// TITLE:  Lab Starter
+// TITLE:  HW3
 //#############################################################################
 
 // Included Files
@@ -43,8 +43,9 @@ uint16_t LEDdisplaynum = 0;
 void I2CB_Init(void);
 int16_t WriteDAN777RCServo(uint16_t RC1, uint16_t RC2);
 int16_t ReadDAN777ADC(uint16_t *ADC1, uint16_t *ADC2);
-int16_t WriteBQ32000(uint16_t second,uint16_t minute,uint16_t hour,uint16_t day,uint16_t date,uint16_t month,uint16_t year);
-int16_t ReadBQ32000(uint16_t *second,uint16_t *minute,uint16_t *hour,uint16_t *day,uint16_t *date,uint16_t *month,uint16_t *year);
+
+uint16_t ReadTwo16BitValuesFromBQ32000(uint16_t *Rvalue1,uint16_t *Rvalue2,uint16_t *Rvalue3,uint16_t *Rvalue4,uint16_t *Rvalue5,uint16_t *Rvalue6,uint16_t *Rvalue7);
+uint16_t WriteTwo16BitValuesToBQ32000(uint16_t Rvalue1,uint16_t Rvalue2,uint16_t Rvalue3,uint16_t Rvalue4,uint16_t Rvalue5,uint16_t Rvalue6,uint16_t Rvalue7);
 int16_t I2C_CheckIfTX(uint16_t timeout);
 int16_t I2C_CheckIfRX(uint16_t timeout);
 uint16_t ReadTwo16BitValuesFromDAN777(uint16_t *Rvalue1,uint16_t *Rvalue2);
@@ -52,16 +53,54 @@ uint16_t WriteTwo16BitValuesToDAN777(uint16_t Cmd16bit_1, uint16_t Cmd16bit_2);
 uint16_t RunI2C = 0; // Flag variable to indicate when to run I2C commands
 int16_t I2C_OK = 0;
 int32_t num_WriteDAN777_Errors = 0;
+int32_t num_WriteBQ32000_Errors = 0;
 int32_t num_ReadDAN777_Errors = 0;
+int32_t num_ReadBQ32000_Errors = 0;
 
 int16_t AFlip = 0;
 int16_t angeff = 0;
+
 uint16_t DANRCS1 = 0;
 uint16_t DANRCS2 = 0;
 uint16_t DANADC1 = 0;
 uint16_t DANADC2 = 0;
+
 int16_t RStatus = 0;
+int16_t BStatus = 0;
 int16_t WStatus = 0;
+int16_t BWStatus = 0;
+int16_t Rsec = 0;
+int16_t Rmin = 0;
+int16_t Rcenthr = 0;
+int16_t Rday = 0;
+int16_t Rdate = 0;
+int16_t Rmonth = 0;
+int16_t Ryears = 0;
+//Interface Still needs to be set so writing the date is entirely matching the registers
+int16_t Wsec = 0;
+int16_t Wmin = 0;
+int16_t Wcenthr = 0;
+int16_t Wday = 0;
+int16_t Wdate = 0;
+int16_t Wmonth = 0;
+int16_t Wyears = 0;
+
+int16_t secone = 0;
+int16_t minone = 0;
+int16_t hourone = 0;
+int16_t day = 0;
+int16_t dateone = 0;
+int16_t monthone = 0;
+int16_t yearone = 0;
+
+int16_t secten = 0;
+int16_t minten = 0;
+int16_t hourten = 0;
+int16_t cent = 0;
+int16_t dateten = 0;
+int16_t monthten = 0;
+int16_t yearten = 0;
+char dayname;
 
 void main(void)
 {
@@ -306,9 +345,10 @@ void main(void)
     // I2c Function Calls NRW
     I2CB_Init();
 
+    BWStatus = WriteTwo16BitValuesToBQ32000(Wsec,Wmin,Wcenthr,Wday,Wdate,Wmonth,Wyears);
+    BStatus = ReadTwo16BitValuesFromBQ32000(Rsec,Rmin,Rcenthr,Rday,Rdate,Rmonth,Ryears);
     RStatus = ReadTwo16BitValuesFromDAN777(DANADC1, DANADC2);
     WStatus = WriteTwo16BitValuesToDAN777(DANRCS1, DANRCS2);
-
 
 
 
@@ -316,7 +356,7 @@ void main(void)
     while(1)
     {
         if (UARTPrint == 1 ) {
-            serial_printf(&SerialA,"DANRCS1: %d, DANRCS2: %d, DANADC1: %d, DANADC2: %d\r\n", DANRCS1, DANRCS2, DANADC1, DANADC2);
+            serial_printf(&SerialA,"DANRCS1: %d, DANRCS2: %d, DANADC1: %d, DANADC2: %d\r\n  %s %d%d/%d%d/%d%d %d%d:%d%d:%d%d \r\n", DANRCS1, DANRCS2, DANADC1, DANADC2, dayname, monthten, monthone, dateten, dateone,yearten, yearone, hourten, hourone, minten, minone, secten, secone);
             UARTPrint = 0;
         }
         if (RunI2C == 1) {
@@ -347,6 +387,34 @@ void main(void)
                     I2CB_Init();
                     DELAY_US(100000);
                     I2C_OK = ReadTwo16BitValuesFromDAN777(DANADC1, DANADC2);
+                }
+            }
+            // Write to CHIPXYZ
+                       I2C_OK = WriteTwo16BitValuesToBQ32000(Wsec,Wmin,Wcenthr,Wday,Wdate,Wmonth,Wyears);
+                       num_WriteBQ32000_Errors = 0;
+                       while(I2C_OK != 0) {
+                           num_WriteBQ32000_Errors++;
+                           if (num_WriteBQ32000_Errors > 2) {
+                               serial_printf(&SerialA,"WriteTwo16BitValuesToBQ32000 Error: %d\r\n",I2C_OK);
+                               I2C_OK = 0;
+                           } else {
+                               I2CB_Init();
+                               DELAY_US(100000);
+                               I2C_OK = WriteTwo16BitValuesToBQ32000(Wsec,Wmin,Wcenthr,Wday,Wdate,Wmonth,Wyears);
+                           }
+                       }
+            // Read CHIPXYZ
+            I2C_OK = ReadTwo16BitValuesFromBQ32000(Rsec,Rmin,Rcenthr,Rday,Rdate,Rmonth,Ryears);
+            num_ReadBQ32000_Errors = 0;
+            while(I2C_OK != 0) {
+                num_ReadBQ32000_Errors++;
+                if (num_ReadBQ32000_Errors > 2) {
+                    serial_printf(&SerialA,"ReadTwo16BitValuesFromBQ32000 Error: %d\r\n",I2C_OK);
+                    I2C_OK = 0;
+                } else {
+                    I2CB_Init();
+                    DELAY_US(100000);
+                    I2C_OK = ReadTwo16BitValuesFromBQ32000(Rsec,Rmin,Rcenthr,Rday,Rdate,Rmonth,Ryears);
                 }
             }
         }
@@ -439,6 +507,169 @@ int16_t I2C_CheckIfRX(uint16_t timeout) {
 
 
 // Write 2 16-bit commands (LSB then MSB) to I2C Slave CHIPXYZ starting at CHIPXYZ's register 4
+uint16_t WriteTwo16BitValuesToBQ32000(uint16_t Rvalue1,uint16_t Rvalue2,uint16_t Rvalue3,uint16_t Rvalue4,uint16_t Rvalue5,uint16_t Rvalue6,uint16_t Rvalue7) {
+    uint16_t Cmd1LSB = 0;
+    uint16_t Cmd1MSB = 0;
+    uint16_t Cmd2LSB = 0;
+    uint16_t Cmd2MSB = 0;
+    uint16_t Cmd3LSB = 0;
+    uint16_t Cmd3MSB = 0;
+    uint16_t Cmd4LSB = 0;
+    uint16_t Cmd4MSB = 0;
+    uint16_t Cmd5LSB = 0;
+    uint16_t Cmd5MSB = 0;
+    uint16_t Cmd6LSB = 0;
+    uint16_t Cmd6MSB = 0;
+    uint16_t Cmd7LSB = 0;
+    uint16_t Cmd7MSB = 0;
+    int16_t I2C_Xready = 0;
+    Cmd1LSB = Rvalue1 & 0xFF; //Bottom 8 bits of command
+    Cmd1MSB = (Rvalue1 >> 8) & 0xFF; //Top 8 bits of command
+    Cmd2LSB = Rvalue2 & 0xFF; //Bottom 8 bits of command
+    Cmd2MSB = (Rvalue2 >> 8) & 0xFF; //Top 8 bits of command
+    Cmd3LSB = Rvalue3 & 0xFF; //Bottom 8 bits of command
+    Cmd3MSB = (Rvalue3 >> 8) & 0xFF; //Top 8 bits of command
+    Cmd4LSB = Rvalue4 & 0xFF; //Bottom 8 bits of command
+    Cmd4MSB = (Rvalue4 >> 8) & 0xFF; //Top 8 bits of command
+    Cmd5LSB = Rvalue5 & 0xFF; //Bottom 8 bits of command
+    Cmd5MSB = (Rvalue5 >> 8) & 0xFF; //Top 8 bits of command
+    Cmd6LSB = Rvalue6 & 0xFF; //Bottom 8 bits of command
+    Cmd6MSB = (Rvalue6 >> 8) & 0xFF; //Top 8 bits of command
+    Cmd7LSB = Rvalue7 & 0xFF; //Bottom 8 bits of command
+    Cmd7MSB = (Rvalue7 >> 8) & 0xFF; //Top 8 bits of command
+
+    // Allow time for I2C to finish up previous commands.
+    DELAY_US(200);
+    if (I2cbRegs.I2CSTR.bit.BB == 1) { // Check if I2C busy. If it is, it's better
+        return 2; // to exit and try again next sample.
+    } // This should not happen too often.
+    I2C_Xready = I2C_CheckIfTX(39062); // Poll until I2C is ready to transmit
+    if (I2C_Xready == -1) {
+        return 4;
+    }
+    I2cbRegs.I2CSAR.all = 0x25; // Set I2C address to that of BQ32000s
+    I2cbRegs.I2CCNT = 15; // Number of values to send plus start register: 4 + 1
+    I2cbRegs.I2CDXR.all = 0; // First need to transfer the register value to start writing data [4 is rcservo address]
+    I2cbRegs.I2CMDR.all = 0x6E20; // I2C in master mode (MST), I2C is in transmit mode (TRX) with start and stop
+    I2C_Xready = I2C_CheckIfTX(39062); // Poll until I2C ready to transmit
+    if (I2C_Xready == -1) {
+        return 4;
+    }
+    I2cbRegs.I2CDXR.all = Cmd1LSB; // Write Command 1 LSB
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Xready = I2C_CheckIfTX(39062); // Poll until I2C ready to transmit
+    if (I2C_Xready == -1) {
+        return 4;
+    }
+    I2cbRegs.I2CDXR.all = Cmd1MSB; // Write Command 1 MSB
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Xready = I2C_CheckIfTX(39062); // Poll until I2C ready to transmit
+    if (I2C_Xready == -1) {
+        return 4;
+    }
+    I2cbRegs.I2CDXR.all = Cmd2LSB; // Write Command 2 LSB
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Xready = I2C_CheckIfTX(39062); // Poll until I2C ready to transmit
+    if (I2C_Xready == -1) {
+        return 4;
+    }
+    I2cbRegs.I2CDXR.all = Cmd2MSB; // Write Command 2 MSB
+    // Since I2CCNT = 0 at this point, a stop condition will be issued
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Xready = I2C_CheckIfTX(39062); // Poll until I2C ready to transmit
+    if (I2C_Xready == -1) {
+        return 4;
+    }
+    I2cbRegs.I2CDXR.all = Cmd3LSB; // Write Command 1 LSB
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Xready = I2C_CheckIfTX(39062); // Poll until I2C ready to transmit
+    if (I2C_Xready == -1) {
+        return 4;
+    }
+    I2cbRegs.I2CDXR.all = Cmd3MSB; // Write Command 1 MSB
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Xready = I2C_CheckIfTX(39062); // Poll until I2C ready to transmit
+    if (I2C_Xready == -1) {
+        return 4;
+    }
+    I2cbRegs.I2CDXR.all = Cmd4LSB; // Write Command 2 LSB
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Xready = I2C_CheckIfTX(39062); // Poll until I2C ready to transmit
+    if (I2C_Xready == -1) {
+        return 4;
+    }
+    I2cbRegs.I2CDXR.all = Cmd4MSB; // Write Command 2 MSB
+    // Since I2CCNT = 0 at this point, a stop condition will be issued
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Xready = I2C_CheckIfTX(39062); // Poll until I2C ready to transmit
+    if (I2C_Xready == -1) {
+        return 4;
+    }
+    I2cbRegs.I2CDXR.all = Cmd5LSB; // Write Command 1 LSB
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Xready = I2C_CheckIfTX(39062); // Poll until I2C ready to transmit
+    if (I2C_Xready == -1) {
+        return 4;
+    }
+    I2cbRegs.I2CDXR.all = Cmd5MSB; // Write Command 1 MSB
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Xready = I2C_CheckIfTX(39062); // Poll until I2C ready to transmit
+    if (I2C_Xready == -1) {
+        return 4;
+    }
+    I2cbRegs.I2CDXR.all = Cmd6LSB; // Write Command 2 LSB
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Xready = I2C_CheckIfTX(39062); // Poll until I2C ready to transmit
+    if (I2C_Xready == -1) {
+        return 4;
+    }
+    I2cbRegs.I2CDXR.all = Cmd6MSB; // Write Command 2 MSB
+    // Since I2CCNT = 0 at this point, a stop condition will be issued
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Xready = I2C_CheckIfTX(39062); // Poll until I2C ready to transmit
+    if (I2C_Xready == -1) {
+        return 4;
+    }
+    I2cbRegs.I2CDXR.all = Cmd7LSB; // Write Command 1 LSB
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Xready = I2C_CheckIfTX(39062); // Poll until I2C ready to transmit
+    if (I2C_Xready == -1) {
+        return 4;
+    }
+    I2cbRegs.I2CDXR.all = Cmd7MSB; // Write Command 1 MSB
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+
+    return 0;
+}
+
 uint16_t WriteTwo16BitValuesToDAN777(uint16_t Cmd16bit_1, uint16_t Cmd16bit_2) {
     uint16_t Cmd1LSB = 0;
     uint16_t Cmd1MSB = 0;
@@ -458,7 +689,7 @@ uint16_t WriteTwo16BitValuesToDAN777(uint16_t Cmd16bit_1, uint16_t Cmd16bit_2) {
     if (I2C_Xready == -1) {
         return 4;
     }
-    I2cbRegs.I2CSAR.all = 0x25; // Set I2C address to that of DAN777's
+    I2cbRegs.I2CSAR.all = 0xD0; // Set I2C address to that of DAN777's
     I2cbRegs.I2CCNT = 5; // Number of values to send plus start register: 4 + 1
     I2cbRegs.I2CDXR.all = 4; // First need to transfer the register value to start writing data [4 is rcservo address]
     I2cbRegs.I2CMDR.all = 0x6E20; // I2C in master mode (MST), I2C is in transmit mode (TRX) with start and stop
@@ -511,6 +742,7 @@ uint16_t ReadTwo16BitValuesFromDAN777(uint16_t *Rvalue1,uint16_t *Rvalue2) {
     uint16_t Val1MSB = 0;
     uint16_t Val2LSB = 0;
     uint16_t Val2MSB = 0;
+
     int16_t I2C_Xready = 0;
     int16_t I2C_Rready = 0;
     // Allow time for I2C to finish up previous commands.
@@ -578,6 +810,176 @@ uint16_t ReadTwo16BitValuesFromDAN777(uint16_t *Rvalue1,uint16_t *Rvalue2) {
     return 0;
 }
 
+
+uint16_t ReadTwo16BitValuesFromBQ32000(uint16_t *Rvalue1,uint16_t *Rvalue2,uint16_t *Rvalue3,uint16_t *Rvalue4,uint16_t *Rvalue5,uint16_t *Rvalue6,uint16_t *Rvalue7) {
+    uint16_t Val1LSB = 0;
+    uint16_t Val1MSB = 0;
+    uint16_t Val2LSB = 0;
+    uint16_t Val2MSB = 0;
+    uint16_t Val3LSB = 0;
+    uint16_t Val3MSB = 0;
+    uint16_t Val4LSB = 0;
+    uint16_t Val4MSB = 0;
+    uint16_t Val5LSB = 0;
+    uint16_t Val5MSB = 0;
+    uint16_t Val6LSB = 0;
+    uint16_t Val6MSB = 0;
+    uint16_t Val7LSB = 0;
+    uint16_t Val7MSB = 0;
+
+    int16_t I2C_Xready = 0;
+    int16_t I2C_Rready = 0;
+    // Allow time for I2C to finish up previous commands.
+    DELAY_US(200);
+    if (I2cbRegs.I2CSTR.bit.BB == 1) { // Check if I2C busy. If it is, it's better
+        return 2; // to exit and try again next sample.
+    } // This should not happen too often.
+    I2C_Xready = I2C_CheckIfTX(39062); // Poll until I2C ready to transmit
+    if (I2C_Xready == -1) {
+        return 4;
+    }
+    I2cbRegs.I2CSAR.all = 0xD1; // I2C address of BQ32000
+    I2cbRegs.I2CCNT = 1; // Just sending address to start reading from
+    I2cbRegs.I2CDXR.all = 0; // Start reading at this register location
+    I2cbRegs.I2CMDR.all = 0x6620; // I2C in master mode (MST), I2C is in transmit mode (TRX) with start
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Xready = I2C_CheckIfTX(39062); // Poll until I2C ready to transmit
+    if (I2C_Xready == -1) {
+        return 4;
+    }
+    // Reissuing another start command to begin reading the values we want
+    I2cbRegs.I2CSAR.all = 0xD1; // I2C address of BQ32000
+    I2cbRegs.I2CCNT = 14; // Receive count
+    I2cbRegs.I2CMDR.all = 0x6C20; // I2C in master mode (MST), TRX=0 (receive mode) with start & stop
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Rready = I2C_CheckIfRX(39062); //Poll until I2C has received 8-bit value
+    if (I2C_Rready == -1) {
+        return -1;
+    }
+    Val1MSB = I2cbRegs.I2CDRR.all; // Read BQ32000
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Rready = I2C_CheckIfRX(39062); //Poll until I2C has received 8-bit value
+    if (I2C_Rready == -1) {
+        return -1;
+    }
+    Val1LSB = I2cbRegs.I2CDRR.all; // Read BQ32000
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Rready = I2C_CheckIfRX(39062); //Poll until I2C has received 8-bit value
+    if (I2C_Rready == -1) {
+        return -1;
+    }
+    Val2MSB = I2cbRegs.I2CDRR.all; // Read BQ32000
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Rready = I2C_CheckIfRX(39062); //Poll until I2C has received 8-bit value
+    if (I2C_Rready == -1) {
+        return -1;
+    }
+    Val2LSB = I2cbRegs.I2CDRR.all; // Read BQ32000
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Rready = I2C_CheckIfRX(39062); //Poll until I2C has received 8-bit value
+    if (I2C_Rready == -1) {
+        return -1;
+    }
+    Val3MSB = I2cbRegs.I2CDRR.all; // Read BQ32000
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Rready = I2C_CheckIfRX(39062); //Poll until I2C has received 8-bit value
+    if (I2C_Rready == -1) {
+        return -1;
+    }
+    Val3LSB = I2cbRegs.I2CDRR.all; // Read BQ32000
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Rready = I2C_CheckIfRX(39062); //Poll until I2C has received 8-bit value
+    if (I2C_Rready == -1) {
+        return -1;
+    }
+    Val4MSB = I2cbRegs.I2CDRR.all; // Read BQ32000
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Rready = I2C_CheckIfRX(39062); //Poll until I2C has received 8-bit value
+    if (I2C_Rready == -1) {
+        return -1;
+    }
+    Val4LSB = I2cbRegs.I2CDRR.all; // Read BQ32000
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Rready = I2C_CheckIfRX(39062); //Poll until I2C has received 8-bit value
+    if (I2C_Rready == -1) {
+        return -1;
+    }
+    Val5MSB = I2cbRegs.I2CDRR.all; // Read BQ32000
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Rready = I2C_CheckIfRX(39062); //Poll until I2C has received 8-bit value
+    if (I2C_Rready == -1) {
+        return -1;
+    }
+    Val5LSB = I2cbRegs.I2CDRR.all; // Read BQ32000
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Rready = I2C_CheckIfRX(39062); //Poll until I2C has received 8-bit value
+    if (I2C_Rready == -1) {
+        return -1;
+    }
+    Val6MSB = I2cbRegs.I2CDRR.all; // Read BQ32000
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Rready = I2C_CheckIfRX(39062); //Poll until I2C has received 8-bit value
+    if (I2C_Rready == -1) {
+        return -1;
+    }
+    Val6LSB = I2cbRegs.I2CDRR.all; // Read BQ32000
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Rready = I2C_CheckIfRX(39062); //Poll until I2C has received 8-bit value
+    if (I2C_Rready == -1) {
+        return -1;
+    }
+    Val7MSB = I2cbRegs.I2CDRR.all; // Read BQ32000
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    I2C_Rready = I2C_CheckIfRX(39062); //Poll until I2C has received 8-bit value
+    if (I2C_Rready == -1) {
+        return -1;
+    }
+    Val7LSB = I2cbRegs.I2CDRR.all; // Read BQ32000
+    if (I2cbRegs.I2CSTR.bit.NACK == 1) { // Check for No Acknowledgement
+        return 3; // This should not happen
+    }
+    // Since I2CCNT = 0 at this point, a stop condition will be issued
+    *Rvalue1 = (Val1MSB << 8) | (Val1LSB & 0xFF);
+    *Rvalue2 = (Val2MSB << 8) | (Val2LSB & 0xFF);
+    *Rvalue3 = (Val3MSB << 8) | (Val3LSB & 0xFF);
+    *Rvalue4 = (Val4MSB << 8) | (Val4LSB & 0xFF);
+    *Rvalue5 = (Val5MSB << 8) | (Val5LSB & 0xFF);
+    *Rvalue6 = (Val6MSB << 8) | (Val6LSB & 0xFF);
+    *Rvalue7 = (Val7MSB << 8) | (Val7LSB & 0xFF);
+
+
+    return 0;
+}
 //RCServo Value Functions
 
 uint16_t setDAN777RCServo1(float angle)
@@ -684,7 +1086,7 @@ __interrupt void cpu_timer2_isr(void)
     GpioDataRegs.GPATOGGLE.bit.GPIO31 = 1;
     CpuTimer2.InterruptCount++;
     RunI2C = 1;
-    if ((CpuTimer2.InterruptCount % 10) == 0) {
+    if ((CpuTimer2.InterruptCount % 5) == 0) {
         UARTPrint = 1;
     }
 
@@ -709,6 +1111,51 @@ __interrupt void cpu_timer2_isr(void)
         DANRCS1 =  setDAN777RCServo1(angeff);
         DANRCS2 = setDAN777RCServo2(angeff);
     }
+    BStatus = ReadTwo16BitValuesFromBQ32000(Rsec,Rmin,Rcenthr,Rday,Rdate,Rmonth,Ryears);
+    RStatus = ReadTwo16BitValuesFromDAN777(DANADC1, DANADC2);
+    WStatus = WriteTwo16BitValuesToDAN777(DANRCS1, DANRCS2);
+    secone = (Rsec&0x0F);
+    secten = (Rsec&0x60);
+
+    minone = (Rmin&0x0F);
+    minten = (Rmin&0x60);
+
+    hourone = (Rcenthr&0x0F);
+    hourten = (Rcenthr&0x02);
+    cent = (Rcenthr&0x40);
+
+    dateone = (Rdate&0x0F);
+    dateten = (Rdate&0x30);
+
+    monthone = (Rmonth&0x0F);
+    monthten = (Rmonth&0x10);
+
+    yearone = (Ryears&0x0F);
+    yearten = (Ryears&0xF0);
+
+    day = (Rday&0x07);
+    if (day == 1){
+        dayname = "Sunday";
+    }
+    if (day == 2){
+        dayname = "Monday";
+    }
+    if (day == 3){
+        dayname = "Tuesday";
+    }
+    if (day == 4){
+        dayname = "Wednesday";
+    }
+    if (day == 5){
+        dayname = "Thursday";
+    }
+    if (day == 6){
+        dayname = "Friday";
+    }
+    if (day == 7){
+        dayname = "Saturday";
+    }
+
 }
 
 

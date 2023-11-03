@@ -71,15 +71,15 @@ int16_t WStatus = 0;
 int16_t BWStatus = 0;
 
 //Interface Still needs to be set so writing the date is entirely matching the registers
-//Write to BQ32000 date and time
+//Write to BQ32000 date and time NRW
 uint16_t Wsec = 0;
-uint16_t Wmin = 1;
-uint16_t Wcenthr = 5;
-uint16_t Wday = 5;
-uint16_t Wdate = 2;
+uint16_t Wmin = 39;
+uint16_t Wcenthr = 9;
+uint16_t Wday = 6;
+uint16_t Wdate = 3;
 uint16_t Wmonth = 11;
 uint16_t Wyears = 23;
-// Vars for reading BQ32000 and separating the tens and zeroes
+// Vars for reading BQ32000 and separating the tens and zeroes NRW
 int16_t secone = 0;
 int16_t minone = 0;
 int16_t hourone = 0;
@@ -96,7 +96,7 @@ int16_t dateten = 0;
 int16_t monthten = 0;
 int16_t yearten = 0;
 
-//Vars for returning full time variables
+//Vars for returning full time variables NRW
 uint16_t sec = 0;
 uint16_t min = 0;
 uint16_t hour = 0;
@@ -347,19 +347,19 @@ void main(void)
 
     // I2c Function Calls NRW
     I2CB_Init();
-
+//Write time to the clock chip NRW
     BWStatus = WriteTwo16BitValuesToBQ32000(Wsec,Wmin,Wcenthr,Wday,Wdate,Wmonth,Wyears);
 
 
 
 
 
-    // IDLE loop. Just sit and loop forever (optional): new i2c while loop NRM
+    // IDLE loop. Just sit and loop forever (optional): new i2c while loop must make ifs for each day case, noday case is for debug NRM
     while(1)
     {
         if (UARTPrint == 1 ) {
             if (day == 0){
-                serial_printf(&SerialA,"DANRCS1: %d, DANRCS2: %d, DANADC1: %d, DANADC2: %d noday %x/%x/%x %x:%x:%x \r\n", DANRCS1, DANRCS2, DANADC1, DANADC2, month, date, year, hour, min, sec);
+                serial_printf(&SerialA,"DANRCS1: %d, DANRCS2: %d, DANADC1: %d, DANADC2: %d noday %d/%d/%d %d:%d:%d \r\n", DANRCS1, DANRCS2, DANADC1, DANADC2, month, date, year, hour, min, sec);
             }
             if (day == 1){
                 serial_printf(&SerialA,"DANRCS1: %d, DANRCS2: %d, DANADC1: %d, DANADC2: %d Sunday %02d/%02d/%02d %d:%02d:%02d \r\n", DANRCS1, DANRCS2, DANADC1, DANADC2, month, date, year, hour, min, sec);
@@ -386,7 +386,7 @@ void main(void)
         }
         if (RunI2C == 1) {
             RunI2C = 0;
-            // Write to CHIPXYZ
+            // Write to DAN777 NRW
             I2C_OK = WriteTwo16BitValuesToDAN777(DANRCS1, DANRCS2);
             num_WriteDAN777_Errors = 0;
             while(I2C_OK != 0) {
@@ -400,7 +400,7 @@ void main(void)
                     I2C_OK = WriteTwo16BitValuesToDAN777(DANRCS1, DANRCS2);
                 }
             }
-            // Read CHIPXYZ
+            // Read DAN777 NRW
             I2C_OK = ReadTwo16BitValuesFromDAN777(&DANADC1, &DANADC2);
             num_ReadDAN777_Errors = 0;
             while(I2C_OK != 0) {
@@ -415,7 +415,7 @@ void main(void)
                 }
             }
 
-            // Read CHIPXYZ
+            // Read BQ32000 NRW
             I2C_OK = ReadTwo16BitValuesFromBQ32000(&sec,&min,&hour,&date,&month,&year,&day);
             num_ReadBQ32000_Errors = 0;
             while(I2C_OK != 0) {
@@ -432,7 +432,8 @@ void main(void)
         }
     }
 }
-//i2C Functions
+//i2C Functions NRW
+//i2c setup
 void I2CB_Init(void) {
     // Setting up EPWM 7 to use as a timer for error handling
     EALLOW;
@@ -518,7 +519,7 @@ int16_t I2C_CheckIfRX(uint16_t timeout) {
 }
 
 
-// Write 2 16-bit commands (LSB then MSB) to I2C Slave CHIPXYZ starting at CHIPXYZ's register 4
+// Write 7 8-bit commands (LSB then MSB) to I2C Slave BQ32000 starting at BQ32000's register 0 NRW
 uint16_t WriteTwo16BitValuesToBQ32000(uint16_t Cmd1LSB,uint16_t Cmd1MSB,uint16_t Cmd2LSB,uint16_t Cmd2MSB, uint16_t Cmd3LSB,uint16_t Cmd3MSB,uint16_t Cmd4LSB) {
 
 
@@ -631,6 +632,8 @@ uint16_t WriteTwo16BitValuesToBQ32000(uint16_t Cmd1LSB,uint16_t Cmd1MSB,uint16_t
     return 0;
 }
 
+
+//Writing to dan chip NRW
 uint16_t WriteTwo16BitValuesToDAN777(uint16_t Cmd16bit_1, uint16_t Cmd16bit_2) {
     uint16_t Cmd1LSB = 0;
     uint16_t Cmd1MSB = 0;
@@ -690,7 +693,7 @@ uint16_t WriteTwo16BitValuesToDAN777(uint16_t Cmd16bit_1, uint16_t Cmd16bit_2) {
     return 0;
 }
 
-/* Read Two 16 Bit values from I2C Slave CHIPXYZ starting at CHIPXYZ's register 10.
+/* Read Two 16 Bit values from I2C Slave DAN777 starting at DAN777's register 0.
  * Notice the Rvalue1 and Rvalue2 passed as pointers (passed by reference). So pass
  * address of the uint16_t variable when using this function. For example:
  * uint16_t Rval1 = 0;
@@ -772,6 +775,7 @@ int16_t ReadTwo16BitValuesFromDAN777(uint16_t *Rvalue1,uint16_t *Rvalue2) {
 }
 
 
+// Reading BQ32000 by reading the 8 bit vals off of the chip then decomposing to ones and tens then convert into decimal
 int16_t ReadTwo16BitValuesFromBQ32000(uint16_t *sec,uint16_t *min,uint16_t *hour ,uint16_t *date,uint16_t *month,uint16_t *year,uint16_t *day) {
     // set raw reading vars
     uint16_t Rsec = 0;
@@ -872,7 +876,7 @@ int16_t ReadTwo16BitValuesFromBQ32000(uint16_t *sec,uint16_t *min,uint16_t *hour
     }
 
     // Since I2CCNT = 0 at this point, a stop condition will be issued
-    // separate raw data into tens and ones
+    // separate raw data into tens and ones NRW
     secone = (Rsec&0xF);
     secten = ((Rsec>>4)&0x7);
 
@@ -890,7 +894,7 @@ int16_t ReadTwo16BitValuesFromBQ32000(uint16_t *sec,uint16_t *min,uint16_t *hour
 
     yearone = (Ryears&0x0F);
     yearten = ((Ryears>>4)&0xF);
-
+//Recombine into decimal value NRW
     *day = (Rday&0x7);
     *sec = secten*10 + secone;
     *min = minten*10+minone;
@@ -900,7 +904,7 @@ int16_t ReadTwo16BitValuesFromBQ32000(uint16_t *sec,uint16_t *min,uint16_t *hour
     *year = yearten*10+yearone;
     return 0;
 }
-//RCServo Value Functions
+//RCServo Value Functions used for PWM Signal NRW
 
 uint16_t setDAN777RCServo1(float angle)
 {
@@ -1010,7 +1014,7 @@ __interrupt void cpu_timer2_isr(void)
         UARTPrint = 1;
     }
 
-    // NRW
+    // NRW Flips the varying pwm signal and creates a signal to be used to write to the DAN777 chip
     if (angeff <= -90.0)
     {
         AFlip = 0;

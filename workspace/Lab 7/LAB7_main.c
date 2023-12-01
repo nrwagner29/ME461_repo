@@ -46,6 +46,7 @@ __interrupt void SPIB_isr(void);
 // Count variables
 uint32_t numTimer0calls = 0;
 uint32_t numSWIcalls = 0;
+uint32_t numTimerSWIcalls = 0;
 extern uint32_t numRXA;
 uint16_t UARTPrint = 0;
 uint16_t LEDdisplaynum = 0;
@@ -171,7 +172,7 @@ float accelz_offset = 0;
 float gyrox_offset = 0;
 float gyroy_offset = 0;
 float gyroz_offset = 0;
-float accelzBalancePoint = -.76;
+float accelzBalancePoint = -.68; // For ROBOT#9
 int16 IMU_data[9];
 int16_t doneCal = 0;
 float tilt_value = 0;
@@ -244,6 +245,56 @@ float K3 = -1.1;
 float K4 = -0.1;
 
 float ubal = 0;
+
+//ex4 NRW ADK
+float WhlDiff = 0;
+float WhlDiff_1 = 0;
+float vel_WhlDiff = 0;
+float vel_WhlDiff_1 = 0;
+
+float turnref = 0;
+float turnref_1 = 0;
+float errorDiff = 0;
+float errorDiff_1 = 0;
+float intDiff = 0;
+float intDiff_1 = 0;
+
+float turnrate = 0;
+float turnrate_1 = 0;
+
+float Kp = 3.0;
+float Ki = 20.0;
+float Kd = 0.08;
+
+//Ex5
+float KpSpeed = 0.35;
+float KiSpeed = 1.5;
+
+float ForwardBackwardCommand = 0.0;
+float Segbot_refSpeed = 0.0;
+float eSpeed = 0.0;
+float eSpeed_1 = 0.0;
+float IK_eSpeed = 0.0;
+float IK_eSpeed_1 = 0.0;
+
+//Ex5 P2
+
+float printLV3 = 0;
+float printLV4 = 0;
+float printLV5 = 0;
+float printLV6 = 0;
+float printLV7 = 0;
+float printLV8 = 0;
+float x = 0;
+float y = 0;
+float bearing = 0;
+extern uint16_t NewLVData;
+extern float fromLVvalues[LVNUM_TOFROM_FLOATS];
+extern LVSendFloats_t DataToLabView;
+extern char LVsenddata[LVNUM_TOFROM_FLOATS*4+2];
+extern uint16_t newLinuxCommands;
+extern float LinuxCommands[CMDNUM_FROM_FLOATS];
+
 
 void setDACA(float dacouta0)
 {
@@ -973,13 +1024,6 @@ void setupSpib(void) //Call this function in main() somewhere after the DINT; li
 // *Ex1 NRW ADK - SPIB_ISR Function
 __interrupt void SPIB_isr(void)
 {
-    //LAB7 Saving past states
-    LeftWheel_1 = LeftWheel;
-    RightWheel_1 = RightWheel;
-    gyro_value_1 = gyro_value;
-    tilt_value_1 = tilt_value;
-    velLeft_1 = velLeft;
-    velRight_1 = velRight;
 
     // *Ex3 Setting up offset
     GpioDataRegs.GPCSET.bit.GPIO66 = 1; // *Ex3 NRW ADK - slave select high
@@ -1000,8 +1044,8 @@ __interrupt void SPIB_isr(void)
     gyroy = gy/32767.0*250.0;
     gyroz = gz/32767.0*250.0;
 
-//    LeftWheel = readEncLeft();
-//    RightWheel = readEncRight();
+    //    LeftWheel = readEncLeft();
+    //    RightWheel = readEncRight();
 
     //    setEPWM2A(uRight);
     //    setEPWM2B(-uLeft);
@@ -1080,10 +1124,6 @@ __interrupt void SPIB_isr(void)
         GpioDataRegs.GPBTOGGLE.bit.GPIO34 = 1; // Always Block Red LED
         UARTPrint = 1; // Tell While loop to print
     }
-    SpibRegs.SPIFFRX.bit.RXFFOVFCLR=1; // Clear Overflow flag
-    SpibRegs.SPIFFRX.bit.RXFFINTCLR=1; // Clear Interrupt flag
-    PieCtrlRegs.PIEACK.all = PIEACK_GROUP6;
-
 
     //###
 
@@ -1124,13 +1164,125 @@ __interrupt void SWI_isr(void)
     gyro_valuedot = 0.6*gyro_valuedot_1+100*(gyro_value-gyro_value_1);
     ubal = -K1*tilt_value - K2*gyro_value - K3*(velLeft+velRight)/2.0 - K4*gyro_valuedot;
 
-    uLeft = ubal/2;
-    uRight = ubal/2;
+
+
+
+    //#############################
+    //### TURN CONTROL OF ROBOT ###
+    //#############################
+
+    WhlDiff = (LeftWheel - RightWheel);
+
+    vel_WhlDiff = .333*vel_WhlDiff_1 + 166.667*(WhlDiff - WhlDiff_1);
+
+    errorDiff = turnref - WhlDiff;
+
+    intDiff = intDiff_1 + (errorDiff + errorDiff_1)*.004/2;
+
+    turn = Kp*errorDiff + Ki*intDiff - Kd*vel_WhlDiff;
+
+    turnref = turnref_1 + (turnrate + turnrate_1)/2*.004;
+
+    eSpeed = (Segbot_refSpeed - (velLeft+velRight)/2);
+
+    IK_eSpeed = IK_eSpeed + (eSpeed + eSpeed_1)/2 * 0.004;
+
+    //Ex5
+    ForwardBackwardCommand = KpSpeed*eSpeed+KiSpeed*IK_eSpeed;
+
+    //no windup
+    if (fabs(turn)>3)
+        intDiff = intDiff_1;
+
+    //saturation of turn
+    if (turn > 4)
+    {
+        turn = 4;
+    }
+    if (turn < -4)
+    {
+        turn = -4;
+    }
+
+    if (fabs(ForwardBackwardCommand)>3)
+        IK_eSpeed = IK_eSpeed_1;
+
+    if (ForwardBackwardCommand > 4)
+    {
+        ForwardBackwardCommand = 4;
+    }
+    if (ForwardBackwardCommand <-4)
+    {
+        ForwardBackwardCommand = -4;
+    }
+
+    // Ex3 & 4
+    //uLeft = ubal/2 + turn;
+    //uRight = ubal/2 - turn;
+
+    //Ex5
+    uLeft = ubal/2 + turn - ForwardBackwardCommand;
+    uRight = ubal/2 - turn - ForwardBackwardCommand;
+
 
     setEPWM2A(uRight);
     setEPWM2B(-uLeft);
 
+
+    if (NewLVData == 1) {
+        NewLVData = 0;
+        Segbot_refSpeed = fromLVvalues[0];
+        turnrate = fromLVvalues[1];
+        printLV3 = fromLVvalues[2];
+        printLV4 = fromLVvalues[3];
+        printLV5 = fromLVvalues[4];
+        printLV6 = fromLVvalues[5];
+        printLV7 = fromLVvalues[6];
+        printLV8 = fromLVvalues[7];
+    }
+    if((numSWIcalls%62) == 0) { // change to the counter variable of you selected 4ms. timer
+        DataToLabView.floatData[0] = xR;
+        DataToLabView.floatData[1] = yR;
+        DataToLabView.floatData[2] = phiR;
+        DataToLabView.floatData[3] = 2.0*((float)numTimerSWIcalls)*.001;
+        DataToLabView.floatData[4] = 3.0*((float)numTimerSWIcalls)*.001;
+        DataToLabView.floatData[5] = (float)numTimerSWIcalls;
+        DataToLabView.floatData[6] = (float)numTimerSWIcalls*4.0;
+        DataToLabView.floatData[7] = (float)numTimerSWIcalls*5.0;
+        LVsenddata[0] = '*'; // header for LVdata
+        LVsenddata[1] = '$';
+        for (int i=0;i<LVNUM_TOFROM_FLOATS*4;i++) {
+            if (i%2==0) {
+                LVsenddata[i+2] = DataToLabView.rawData[i/2] & 0xFF;
+            } else {
+                LVsenddata[i+2] = (DataToLabView.rawData[i/2]>>8) & 0xFF;
+            }
+        }
+        serial_sendSCID(&SerialD, LVsenddata, 4*LVNUM_TOFROM_FLOATS + 2);
+    }
+
     numSWIcalls++;
+
+    //LAB7 Saving past states
+    LeftWheel_1 = LeftWheel;
+    RightWheel_1 = RightWheel;
+    gyro_value_1 = gyro_value;
+    tilt_value_1 = tilt_value;
+    velLeft_1 = velLeft;
+    velRight_1 = velRight;
+    turnrate_1 = turnrate;
+    turnref_1 = turnref;
+
+    //Ex4 LAB7 NRW ADK
+    WhlDiff_1 = WhlDiff;
+    vel_WhlDiff_1 = vel_WhlDiff;
+    errorDiff_1 = errorDiff;
+    intDiff_1 = intDiff;
+
+
+    //Ex5
+    eSpeed_1 = eSpeed;
+    IK_eSpeed_1 = IK_eSpeed;
 
     DINT;
 }
@@ -1303,37 +1455,6 @@ __interrupt void cpu_timer1_isr(void)
     //
     //    // Ex5 NRW ADK
     //
-    //    if (NewLVData == 1) {
-    //        NewLVData = 0;
-    //        Vref = fromLVvalues[0];
-    //        turn = fromLVvalues[1];
-    //        printLV3 = fromLVvalues[2];
-    //        printLV4 = fromLVvalues[3];
-    //        printLV5 = fromLVvalues[4];
-    //        printLV6 = fromLVvalues[5];
-    //        printLV7 = fromLVvalues[6];
-    //        printLV8 = fromLVvalues[7];
-    //    }
-    //    if((CpuTimer1.InterruptCount%62) == 0) { // change to the counter variable of you selected 4ms. timer
-    //        DataToLabView.floatData[0] = xR;
-    //        DataToLabView.floatData[1] = yR;
-    //        DataToLabView.floatData[2] = phiR;
-    //        DataToLabView.floatData[3] = 2.0*((float)numTimer0calls)*.001;
-    //        DataToLabView.floatData[4] = 3.0*((float)numTimer0calls)*.001;
-    //        DataToLabView.floatData[5] = (float)numTimer0calls;
-    //        DataToLabView.floatData[6] = (float)numTimer0calls*4.0;
-    //        DataToLabView.floatData[7] = (float)numTimer0calls*5.0;
-    //        LVsenddata[0] = '*'; // header for LVdata
-    //        LVsenddata[1] = '$';
-    //        for (int i=0;i<LVNUM_TOFROM_FLOATS*4;i++) {
-    //            if (i%2==0) {
-    //                LVsenddata[i+2] = DataToLabView.rawData[i/2] & 0xFF;
-    //            } else {
-    //                LVsenddata[i+2] = (DataToLabView.rawData[i/2]>>8) & 0xFF;
-    //            }
-    //        }
-    //        serial_sendSCID(&SerialD, LVsenddata, 4*LVNUM_TOFROM_FLOATS + 2);
-    //    }
 
     //##################
     //##Dead Reckoning##

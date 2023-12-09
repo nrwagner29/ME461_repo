@@ -172,7 +172,6 @@ float accelz_offset = 0;
 float gyrox_offset = 0;
 float gyroy_offset = 0;
 float gyroz_offset = 0;
-float accelzBalancePoint = -.68; // For ROBOT#9
 int16 IMU_data[9];
 int16_t doneCal = 0;
 float tilt_value = 0;
@@ -195,7 +194,6 @@ int32_t timecount = 0;
 int16_t calibration_state = 0;
 int32_t calibration_count = 0;
 
-
 /*
  WR = 0.56759; // (ft) Robot Width
     RWh = 1/radfoot; // (ft) Radius of the Wheel (OUR values)
@@ -211,7 +209,7 @@ int32_t calibration_count = 0;
     yRD =
 
  */
-// Ex6 NRW ADK
+
 float WR = 0;
 float RWh = 0;
 float phiR = 0;
@@ -295,18 +293,8 @@ extern char LVsenddata[LVNUM_TOFROM_FLOATS*4+2];
 extern uint16_t newLinuxCommands;
 extern float LinuxCommands[CMDNUM_FROM_FLOATS];
 
-float angeff = 0;
 uint16_t Flip = 0;
 uint16_t AFlip = 0;
-
-
-//State vars
-int myStateVar = 10; // Initialize global State Variable to desired initial state
-long timeint = 0;
-
-
-
-
 
 void setDACA(float dacouta0)
 {
@@ -316,6 +304,36 @@ void setDACA(float dacouta0)
     if (DACOutInt < 0) DACOutInt = 0;
     DacaRegs.DACVALS.bit.DACVALS = DACOutInt;
 }
+
+// ############################
+// ###  CONTROL PARAMETERS  ###
+// ############################
+
+float accelzBalancePoint = -.68; // For ROBOT#9 default -0.68
+float SERVO_angle = 0; // Servoangle in degree
+float SERVO_rover = 0; // Leg stored
+float SERVO_balance = 0;
+float SERVO_tipped = 0;
+float SERVO_stand = 0;
+uint16_t SERVO_balancet = 0; // tipped leg final position to balance
+// #########################
+// ###  STATE VARIABLES  ###
+// #########################
+
+int myStateVar = 30; // Initialize global State Variable to desired initial state
+long timeint = 0;
+
+float balance_anglepos = 0; // angle to balance if coming from rover
+float balance_angleneg = 0; // angle to balance if coming from tipped
+float tipped_angle = 0;
+float rover_angle = 0;
+
+uint16_t actbalance = 0;
+uint16_t standcmd = 0;
+uint16_t balcmd = 0;
+uint16_t rovercmd = 0;
+
+
 
 void main(void)
 {
@@ -612,30 +630,19 @@ void main(void)
     EPwm8Regs.TBPHS.bit.TBPHS = 0; // NRW ADK - Setting the phase to zero
 
     //###################
-    //## ADC Registers ##
+    //## ADCA Registers ##
     //###################
 
     // NRW ADK - Set up ADCD so that it uses 2 of its 16 SOCs (Start of Conversions)
     EALLOW;
     //write configurations for all ADCs ADCA, ADCB, ADCC, ADCD
     AdcaRegs.ADCCTL2.bit.PRESCALE = 6; //set ADCCLK divider to /4
-    AdcbRegs.ADCCTL2.bit.PRESCALE = 6; //set ADCCLK divider to /4
-    AdccRegs.ADCCTL2.bit.PRESCALE = 6; //set ADCCLK divider to /4
-    AdcdRegs.ADCCTL2.bit.PRESCALE = 6; //set ADCCLK divider to /4
     AdcSetMode(ADC_ADCA, ADC_RESOLUTION_12BIT, ADC_SIGNALMODE_SINGLE); //read calibration settings
-    AdcSetMode(ADC_ADCB, ADC_RESOLUTION_12BIT, ADC_SIGNALMODE_SINGLE); //read calibration settings
-    AdcSetMode(ADC_ADCC, ADC_RESOLUTION_12BIT, ADC_SIGNALMODE_SINGLE); //read calibration settings
-    AdcSetMode(ADC_ADCD, ADC_RESOLUTION_12BIT, ADC_SIGNALMODE_SINGLE); //read calibration settings
     //Set pulse positions to late
     AdcaRegs.ADCCTL1.bit.INTPULSEPOS = 1;
-    AdcbRegs.ADCCTL1.bit.INTPULSEPOS = 1;
-    AdccRegs.ADCCTL1.bit.INTPULSEPOS = 1;
-    AdcdRegs.ADCCTL1.bit.INTPULSEPOS = 1;
     //power up the ADCs
     AdcaRegs.ADCCTL1.bit.ADCPWDNZ = 1;
-    AdcbRegs.ADCCTL1.bit.ADCPWDNZ = 1;
-    AdccRegs.ADCCTL1.bit.ADCPWDNZ = 1;
-    AdcdRegs.ADCCTL1.bit.ADCPWDNZ = 1;
+
     //delay for 1ms to allow ADC time to power up
     DELAY_US(1000);
     //Select the channels to convert and end of conversion flag
@@ -683,9 +690,9 @@ void main(void)
     //LAB07
     PieCtrlRegs.PIEIER1.bit.INTx1 = 1;
 
-//    init_serialSCIB(&SerialB,115200);
-//    init_serialSCIC(&SerialC,115200);
-//    init_serialSCID(&SerialD,115200);
+    //    init_serialSCIB(&SerialB,115200);
+    //    init_serialSCIC(&SerialC,115200);
+    //    init_serialSCID(&SerialD,115200);
 
     // Enable global Interrupts and higher priority real-time debug events
     init_eQEPs();
@@ -693,12 +700,12 @@ void main(void)
     EINT;  // Enable Global interrupt INTM
     ERTM;  // Enable Global realtime interrupt DBGM
 
-
     // IDLE loop. Just sit and loop forever (optional):
     while(1)
     {
         if (UARTPrint == 1 )
         {
+            //LAB7 serial_printf(&SerialA,"ADC1:%.4f ADC2:%.4f Accel_Z:%.2f Gyro_X:%.2f LeftAngle:%.2f RightAngle:%.2f\r\n",yk2add,yk3add,accelz,gyrox,LeftWheel,RightWheel);
             serial_printf(&SerialA,"Tilt:%.4f Gyro:%.4f LeftWheel:%.4f RightWheel:%.4f\r\n",tilt_value,gyro_value,LeftWheel,RightWheel);
             UARTPrint = 0;
 
@@ -772,165 +779,7 @@ float readEncRight(void) {
     return (raw*(2*PI/12000.0));
 }
 
-//
-// ROBOT WHEEL CONTROL
-//
 
-void setEPWM2A(float controleffort)
-{
-    uint16_t output;
-
-    if (controleffort < -10)
-    {
-        controleffort = -10;
-        RI = RI_1;
-    }
-    if (controleffort > 10)
-    {
-        controleffort = 10;
-        RI = RI_1;
-    }
-
-    output = (((controleffort) + 10.0)/20.0) * EPwm2Regs.TBPRD;
-
-    EPwm2Regs.CMPA.bit.CMPA = output;
-    return;
-}
-
-
-void setEPWM2B(float controleffort)
-{
-    uint16_t output;
-
-    if (controleffort < -10)
-    {
-        controleffort = -10;
-        LI = LI_1;
-    }
-    if (controleffort > 10)
-    {
-        controleffort = 10;
-        LI = LI_1;
-    }
-
-    output = (((controleffort) + 10.0)/20.0) * EPwm2Regs.TBPRD;
-
-    EPwm2Regs.CMPB.bit.CMPB = output;
-    return;
-}
-
-//
-// ROBOT MECHANISM CONTROL
-//
-
-void setEPWM8A(float angle)
-{
-    uint16_t angout;
-    //NRW ADK - Saturating the float variable angle within the range of (-90,90)
-    if (angle < -90)
-    {
-        angle = -90;
-    }
-    if (angle > 90)
-    {
-        angle = 90;
-    }
-    //NRW ADK - "Normalizing" the variable so that -90degrees is 4% DC, 0degrees is 8% DC and 90degrees is 12% DC
-    angout = (((angle) + 90.0)/180.0) * EPwm8Regs.TBPRD*.08 + .04*EPwm8Regs.TBPRD;
-
-    EPwm8Regs.CMPA.bit.CMPA = angout;
-
-    return;
-}
-
-void setEPWM8B(float angle)
-{
-    uint16_t angout;
-    //NRW ADK - Saturating the float variable angle within the range of (-90,90)
-    if (angle < -90)
-    {
-        angle = -90;
-    }
-    if (angle > 90)
-    {
-        angle = 90;
-    }
-    //NRW ADK - "Normalizing" the variable so that -90degrees is 4% DC, 0degrees is 8% DC and 90degrees is 12% DC
-    angout = (((angle) + 90.0)/180.0) * EPwm8Regs.TBPRD*.08 + .04*EPwm8Regs.TBPRD;
-
-    EPwm8Regs.CMPB.bit.CMPB = angout;
-
-    return;
-}
-
-// new functions: activate front arm
-//                deactivate front arm
-//                activate back arm
-//                deactivate back arm
-//                activate balancing
-//                purposeful fall backward
-//                purposeful fall forward
-//                
-//new variables:
-// balance commman
-// standing tipped command
-// rover command
-// 
-
-void myPeriodicFunction(void) { // Most of the state machines we will be writing
-// in this class will be inside a function that
-// is called at a periodic rate. Like say every 1ms.
-
-//increment a global long integer keeping track of a sample count for timing
-timeint++;
-etc.;
-switch(myStateVar) { // state machine
-
-case 10: // standing
-
-if (Recieve balance command) {
-activate arm
-myStateVar = 15; //Tipped
-//initialize any variables needed for state 20. Very important.
-}
-break;
-
-case 15: //Tipped case
-
-if (angleout = tipped angle) {
-myStateVar = 20; // Balancing
-activate balancing
-Deactivate front arm
-}
-
-case 20;//balancing
-
-activate balancing
-if(go to tipped/standing) {
-    Purposeful fall Forward
-    myStateVar = 10/15;
-} else if (go to rover) {
-    purposedull fall Backward 
-    myStateVar = 30;
-}
-
-case 30;//rover
-
-if (recieve balance command) {
-    extended arm 
-    if (angle = balance angle){
-    activate balancing
-     myStateVar = 20;
-    reset back arm 
-    }
-
-}
-
-}
-}
-
-
-// *Ex3 NRW ADK
 void setupSpib(void) //Call this function in main() somewhere after the DINT; line of code.
 {
     // Step 1.
@@ -988,27 +837,12 @@ void setupSpib(void) //Call this function in main() somewhere after the DINT; li
     // 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C 0x1D, 0x1E, 0x1F. Use only one SS low to high for all these writes
     // some code is given, most you have to fill you yourself.
     GpioDataRegs.GPCCLEAR.bit.GPIO66 = 1; // Slave Select Low
-    // Perform the number of needed writes to SPITXBUF to write to all 13 registers. Remember we are sending
-    // 16-bit transfers, so two registers at a time after the first 16-bit transfer.
-    // To address 00x13 write 0x00
     SpibRegs.SPITXBUF = 0x1300;
-    // To address 00x14 write 0x00
-    // To address 00x15 write 0x00
     SpibRegs.SPITXBUF = 0x0000;
-    // To address 00x16 write 0x00
-    // To address 00x17 write 0x00
     SpibRegs.SPITXBUF = 0x0000;
-    // To address 00x18 write 0x00
-    // To address 00x19 write 0x13
     SpibRegs.SPITXBUF = 0x0013;
-    // To address 00x1A write 0x02
-    // To address 00x1B write 0x00
     SpibRegs.SPITXBUF = 0x0200;
-    // To address 00x1C write 0x08
-    // To address 00x1D write 0x06
     SpibRegs.SPITXBUF = 0x0806;
-    // To address 00x1E write 0x00
-    // To address 00x1F write 0x00
     SpibRegs.SPITXBUF = 0x0000;
     // wait for the correct number of 16-bit values to be received into the RX FIFO
     while(SpibRegs.SPIFFRX.bit.RXFFST !=7); // 1 address + 6 Register values
@@ -1024,24 +858,16 @@ void setupSpib(void) //Call this function in main() somewhere after the DINT; li
 
     DELAY_US(10); // Delay 10us to allow time for the MPU-2950 to get ready for next transfer.
 
-    GpioDataRegs.GPCCLEAR.bit.GPIO66 = 1; // Slave Select Low
-    // Perform the number of needed writes to SPITXBUF to write to all 13 registers. Remember we are sending
-    // 16-bit transfers, so two registers at a time after the first 16-bit transfer.
-    // To address 00x13 write 0x00
+    GpioDataRegs.GPCCLEAR.bit.GPIO66 = 1;
     SpibRegs.SPITXBUF = 0x7600;
-    // *EX3 NRW ADK - XA OFFSETs
     SpibRegs.SPITXBUF = 0x0000;
-    // To address 00x16 write 0x00
-    // To address 00x17 write 0x00
     SpibRegs.SPITXBUF = 0x0B1E;
-    // To address 00x18 write 0x00
-    // To address 00x19 write 0x13
     SpibRegs.SPITXBUF = 0x0DC1;
 
     while(SpibRegs.SPIFFRX.bit.RXFFST !=4); // 1 address + 6 Register values
     GpioDataRegs.GPCSET.bit.GPIO66 = 1; // Slave Select High
     temp = SpibRegs.SPIRXBUF;
-    // ???? read the additional number of garbage receive values off the RX FIFO to clear out the RX FIFO
+
     SpibRegs.SPIRXBUF;
     SpibRegs.SPIRXBUF;
     SpibRegs.SPIRXBUF;
@@ -1143,21 +969,18 @@ void setupSpib(void) //Call this function in main() somewhere after the DINT; li
     temp = SpibRegs.SPIRXBUF;
     DELAY_US(10);
     GpioDataRegs.GPCCLEAR.bit.GPIO66 = 1;
-    //SpibRegs.SPITXBUF = (0x7800 | 0x0012); // 0x7800
     SpibRegs.SPITXBUF = (0x7800 | 0x0070); // 0x7800
     while(SpibRegs.SPIFFRX.bit.RXFFST !=1);
     GpioDataRegs.GPCSET.bit.GPIO66 = 1;
     temp = SpibRegs.SPIRXBUF;
     DELAY_US(10);
     GpioDataRegs.GPCCLEAR.bit.GPIO66 = 1;
-    //SpibRegs.SPITXBUF = (0x7A00 | 0x0011); // 0x7A00
     SpibRegs.SPITXBUF = (0x7A00 | 0x000E); // 0x7A00 YA OFFSET UPPER
     while(SpibRegs.SPIFFRX.bit.RXFFST !=1);
     GpioDataRegs.GPCSET.bit.GPIO66 = 1;
     temp = SpibRegs.SPIRXBUF;
     DELAY_US(10);
     GpioDataRegs.GPCCLEAR.bit.GPIO66 = 1;
-    //SpibRegs.SPITXBUF = (0x7B00 | 0x00FA); // 0x7B00
     SpibRegs.SPITXBUF = (0x7B00 | 0x002C); // 0x7B00 YA OFFSET Lower
     while(SpibRegs.SPIFFRX.bit.RXFFST !=1);
     GpioDataRegs.GPCSET.bit.GPIO66 = 1;
@@ -1170,7 +993,6 @@ void setupSpib(void) //Call this function in main() somewhere after the DINT; li
     temp = SpibRegs.SPIRXBUF;
     DELAY_US(10);
     GpioDataRegs.GPCCLEAR.bit.GPIO66 = 1;
-    //SpibRegs.SPITXBUF = (0x7E00 | 0x0050); // 0x7E00
     SpibRegs.SPITXBUF = (0x7E00 | 0x0038); // 0x7E00
     while(SpibRegs.SPIFFRX.bit.RXFFST !=1);
     GpioDataRegs.GPCSET.bit.GPIO66 = 1;
@@ -1182,14 +1004,12 @@ void setupSpib(void) //Call this function in main() somewhere after the DINT; li
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP6;
 }
 
-
-// *Ex1 NRW ADK - SPIB_ISR Function
 __interrupt void SPIB_isr(void)
 {
 
     // *Ex3 Setting up offset
-    GpioDataRegs.GPCSET.bit.GPIO66 = 1; // *Ex3 NRW ADK - slave select high
-    SpibRegs.SPIRXBUF; // *Ex3 NRW ADK assigning dummies in address + INT_STATUS
+    GpioDataRegs.GPCSET.bit.GPIO66 = 1;
+    SpibRegs.SPIRXBUF;
     ax = SpibRegs.SPIRXBUF;
     ay = SpibRegs.SPIRXBUF;
     az = SpibRegs.SPIRXBUF;
@@ -1249,7 +1069,11 @@ __interrupt void SPIB_isr(void)
         gyrox -= gyrox_offset;
         gyroy -= gyroy_offset;
         gyroz -= gyroz_offset;
-        /*--------------Kalman Filtering code start---------------------------------------------------------------------*/
+
+        // ######################
+        // ## KALMAN FILTERING ##
+        // ######################
+
         float tiltrate = (gyrox*PI)/180.0; // rad/s
         float pred_tilt, z, y, S;
         // Prediction Step
@@ -1287,8 +1111,6 @@ __interrupt void SPIB_isr(void)
         UARTPrint = 1; // Tell While loop to print
     }
 
-    //###
-
     SPIBint++;
     if ((SPIBint % 200) == 0)
     {
@@ -1303,6 +1125,176 @@ __interrupt void SPIB_isr(void)
 
 }
 
+// #############################
+// ###  ROBOT WHEEL CONTROL  ###
+// #############################
+
+void setEPWM2A(float controleffort)
+{
+    uint16_t output;
+
+    if (controleffort < -10)
+    {
+        controleffort = -10;
+        RI = RI_1;
+    }
+    if (controleffort > 10)
+    {
+        controleffort = 10;
+        RI = RI_1;
+    }
+
+    output = (((controleffort) + 10.0)/20.0) * EPwm2Regs.TBPRD;
+
+    EPwm2Regs.CMPA.bit.CMPA = output;
+    return;
+}
+
+
+void setEPWM2B(float controleffort)
+{
+    uint16_t output;
+
+    if (controleffort < -10)
+    {
+        controleffort = -10;
+        LI = LI_1;
+    }
+    if (controleffort > 10)
+    {
+        controleffort = 10;
+        LI = LI_1;
+    }
+
+    output = (((controleffort) + 10.0)/20.0) * EPwm2Regs.TBPRD;
+
+    EPwm2Regs.CMPB.bit.CMPB = output;
+    return;
+}
+
+// #################################
+// ###  ROBOT MECHANISM CONTROL  ###
+// #################################
+
+void setEPWM8A(float angle) // RC1(GPIO14)
+{
+    uint16_t angout;
+    //NRW ADK - Saturating the float variable angle within the range of (-90,90)
+    if (angle < -90)
+    {
+        angle = -90;
+    }
+    if (angle > 90)
+    {
+        angle = 90;
+    }
+    //NRW ADK - "Normalizing" the variable so that -90degrees is 4% DC, 0degrees is 8% DC and 90degrees is 12% DC
+    angout = (((angle) + 90.0)/180.0) * EPwm8Regs.TBPRD*.08 + .04*EPwm8Regs.TBPRD;
+    EPwm8Regs.CMPA.bit.CMPA = angout;
+
+    return;
+}
+
+void setEPWM8B(float angle) // RC2(GPIO15)
+{
+    uint16_t angout;
+    //NRW ADK - Saturating the float variable angle within the range of (-90,90)
+    if (angle < -90)
+    {
+        angle = -90;
+    }
+    if (angle > 90)
+    {
+        angle = 90;
+    }
+    //NRW ADK - "Normalizing" the variable so that -90degrees is 4% DC, 0degrees is 8% DC and 90degrees is 12% DC
+    angout = (((angle) + 90.0)/180.0) * EPwm8Regs.TBPRD*.08 + .04*EPwm8Regs.TBPRD;
+
+    EPwm8Regs.CMPB.bit.CMPB = angout;
+
+    return;
+}
+
+// #######################
+// ###  STATE MACHINE  ###
+// #######################
+
+
+// new functions: activate front arm
+//                deactivate front arm
+//                activate back arm
+//                deactivate back arm
+//                activate balancing
+//                purposeful fall backward
+//                purposeful fall forward
+//
+//new variables:
+// balance commman
+// standing tipped command
+// rover command
+//
+
+void myPeriodicFunction(void) { // Most of the state machines we will be writing
+// in this class will be inside a function that
+// is called at a periodic rate. Like say every 1ms.
+
+//increment a global long integer keeping track of a sample count for timing
+timeint++;
+etc.;
+switch(myStateVar) { // state machine
+
+case 10: // standing
+
+if (balcmd = 1) {
+//activate arm
+setEPWM6(SERVO_tipped);// need to know tipped to bal angle
+
+if (tilt_value = tipped_angle){
+myStateVar = 15; //Tipped
+setEPWM6(SERVO_stand);// store arms *will this be active long enough to store arms fully?*
+
+
+}
+
+}
+break;
+
+case 15: //Tipped case
+
+balcmd = 0;
+myStateVar = 20; // Balancing
+actbalance = 1; // while loop to activate?
+//Deactivate front arm *done in standing phase*
+
+case 20;//balancing
+
+//activate balancing *done in tipped phase*
+if(standcmd  = 1) {
+    Purposeful fall Forward - need to test command
+    myStateVar = 10;//15 if falls to tipped, not standing
+    standcmd = 0;
+} else if (rovercmd = 1) {
+    purposefull fall Backward - need to test command
+    myStateVar = 30;
+    rovercmd = 0;
+}
+
+case 30;//rover
+
+if (balcmd = 1) {
+//activate arm
+setEPWM8A(SERVO_balance); //rover to bal servo angle
+setEPWM8B(-SERVO_balance);
+if (tilt_value = balance_angle){
+myStateVar = 20; //Balanced
+setEPWM8A(SERVO_rover);// store arms *will this be active long enough to store arms fully?*
+setEPWM8B(-SERVO_rover);
+
+}
+
+}
+}
+}
 
 
 // SWI_isr,  Using this interrupt as a Software started interrupt
@@ -1314,7 +1306,6 @@ __interrupt void SWI_isr(void)
     asm("       NOP");                    // Wait one cycle
     EINT;                                 // Clear INTM to enable interrupts
 
-    // Insert SWI ISR Code here.......
 
     //############################
     //### BALANCING THE SEGBOT ###
@@ -1325,6 +1316,7 @@ __interrupt void SWI_isr(void)
     gyro_valuedot = 0.6*gyro_valuedot_1+100*(gyro_value-gyro_value_1);
     ubal = -K1*tilt_value - K2*gyro_value - K3*(velLeft+velRight)/2.0 - K4*gyro_valuedot;
 
+
     //#############################
     //### TURN CONTROL OF ROBOT ###
     //#############################
@@ -1332,11 +1324,17 @@ __interrupt void SWI_isr(void)
     WhlDiff = (LeftWheel - RightWheel);
 
     vel_WhlDiff = .333*vel_WhlDiff_1 + 166.667*(WhlDiff - WhlDiff_1);
+
     errorDiff = turnref - WhlDiff;
+
     intDiff = intDiff_1 + (errorDiff + errorDiff_1)*.004/2;
+
     turn = Kp*errorDiff + Ki*intDiff - Kd*vel_WhlDiff;
+
     turnref = turnref_1 + (turnrate + turnrate_1)/2*.004;
+
     eSpeed = (Segbot_refSpeed - (velLeft+velRight)/2);
+
     IK_eSpeed = IK_eSpeed + (eSpeed + eSpeed_1)/2 * 0.004;
 
     //Ex5
@@ -1374,6 +1372,7 @@ __interrupt void SWI_isr(void)
 
     setEPWM2A(uRight);
     setEPWM2B(-uLeft);
+
 
     if (NewLVData == 1) {
         NewLVData = 0;
@@ -1456,6 +1455,8 @@ __interrupt void ADCA_ISR (void)
     }
 
 
+
+
     // saving past states
     for (int i=21;i>0;i--)
     {
@@ -1466,7 +1467,7 @@ __interrupt void ADCA_ISR (void)
 
     // Here write yk to DACA channel
     setDACA(yk2add);
-  
+
     //LAB7
     GpioDataRegs.GPCCLEAR.bit.GPIO66 = 1;
     SpibRegs.SPIFFRX.bit.RXFFIL = 8; // *Ex3 NRW ADK: 1 address + 3 gyro + 1 temp + 3 accelerometer
@@ -1484,15 +1485,24 @@ __interrupt void ADCA_ISR (void)
 
     AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //clear interrupt flag
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
-}
+}//END
 
 
-// cpu_timer0_isr - CPU Timer0 ISR
+
+// ##################
+// ### CPU TIMERS ###
+// ##################
+
+
+// #####
+// # 0 #
+// #####
 __interrupt void cpu_timer0_isr(void)
 {
     CpuTimer0.InterruptCount++;
 
     numTimer0calls++;
+
 
     if ((numTimer0calls%25) == 0) {
         displayLEDletter(LEDdisplaynum);
@@ -1506,12 +1516,17 @@ __interrupt void cpu_timer0_isr(void)
         // Blink LaunchPad Red LED
         //        GpioDataRegs.GPBTOGGLE.bit.GPIO34 = 1;
     }
+    //    LeftWheel = readEncLeft();
+    //    RightWheel = readEncRight();
 
     // Acknowledge this interrupt to receive more interrupts from group 1
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 }
 
-// cpu_timer1_isr - CPU Timer1 ISR
+
+// #####
+// # 1 #
+// #####
 __interrupt void cpu_timer1_isr(void)
 {
 
@@ -1536,9 +1551,12 @@ __interrupt void cpu_timer1_isr(void)
     xR = xR_1+(xRD+xRD_1)/2*0.004;
     yR = yR_1+(yRD+yRD_1)/2*0.004;
 
-}
+}//END
 
 
+// #####
+// # 2 #
+// #####
 // cpu_timer2_isr CPU Timer2 ISR
 __interrupt void cpu_timer2_isr(void)
 {
@@ -1549,29 +1567,33 @@ __interrupt void cpu_timer2_isr(void)
     if ((CpuTimer2.InterruptCount % 10) == 0) {
         UARTPrint = 1;
     }
+    SERVO_rover = SERVO_angle+90;
+    setEPWM8A(SERVO_rover); // servo_angle - -> to raise / + -> - to lower
+    setEPWM8B(-SERVO_rover); // servo_angle + -> - to raise / - -> + to lower
+
 
     // NRW ADK - flipping the incrementation so that the interrupt function gradually increases the command
     // until 90 is reached and then switch gradually decreasing the command until the -90 is reached
-
-    if (angeff <= -90.0)
-    {
-        AFlip = 0;
-    }
-    if (angeff >= 90.0)
-    {
-        AFlip = 1;
-    }
-    if (AFlip == 0)
-    {
-        angeff+=.15;
-
-        setEPWM8A(angeff);
-        setEPWM8B(angeff);
-    }
-    if (AFlip == 1)
-    {
-        angeff-=.15;
-        setEPWM8A(angeff);
-        setEPWM8B(angeff);
-    }
-} 
+    //Flipping
+    //    if (angeff <= -90.0)
+    //    {
+    //        AFlip = 0;
+    //    }
+    //    if (angeff >= 90.0)
+    //    {
+    //        AFlip = 1;
+    //    }
+    //    if (AFlip == 0)
+    //    {
+    //        angeff+=.15;
+    //
+    //        setEPWM8A(angeff);
+    //        setEPWM8B(angeff);
+    //    }
+    //    if (AFlip == 1)
+    //    {
+    //        angeff-=.15;
+    //        setEPWM8A(angeff);
+    //        setEPWM8B(angeff);
+    //    }
+}//END

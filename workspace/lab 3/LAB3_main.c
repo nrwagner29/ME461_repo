@@ -2,6 +2,7 @@
 // FILE:   LABstarter_main.c
 //
 // TITLE:  Lab Starter
+// *Comment Anotation Initial : NRW ADK Used
 //#############################################################################
 
 // Included Files
@@ -33,7 +34,7 @@ __interrupt void cpu_timer1_isr(void);
 __interrupt void cpu_timer2_isr(void);
 __interrupt void SWI_isr(void);
 
-// Count variables
+// NRW ADK Count variables Defined
 uint32_t numTimer0calls = 0;
 uint32_t numSWIcalls = 0;
 extern uint32_t numRXA;
@@ -262,73 +263,78 @@ void main(void)
 
     init_serialSCIA(&SerialA,115200);
 
+
     //EPwm12
-    EPwm12Regs.TBCTL.bit.CLKDIV = 0;
-    EPwm12Regs.TBCTL.bit.FREE_SOFT= 3;
-    EPwm12Regs.TBCTL.bit.CTRMODE = 0;
-    EPwm12Regs.TBCTL.bit.PHSEN = 0;
-    EPwm12Regs.TBCTR = 0;
-    EPwm12Regs.TBPRD = 2500; // NRW ADK
-    EPwm12Regs.CMPA.bit.CMPA = 0;
-    EPwm12Regs.AQCTLA.bit.ZRO = 2;
-    EPwm12Regs.AQCTLA.bit.CAU = 1;
-    EPwm12Regs.TBPHS.bit.TBPHS = 0;
+    EPwm12Regs.TBCTL.bit.CLKDIV = 0; // NRW ADK - Setting to Clock divide by 1
+    EPwm12Regs.TBCTL.bit.FREE_SOFT= 3; // NRW ADK - Setting to Free Soft emulation mode to Free Run
+    EPwm12Regs.TBCTL.bit.CTRMODE = 0; // NRW ADK - Setting to Count up Mode
+    EPwm12Regs.TBCTL.bit.PHSEN = 0; // NRW ADK - Setting to phase loading disabled
+    EPwm12Regs.TBCTR = 0; // NRW ADK - Setting to Starting the timer at zero
+    EPwm12Regs.TBPRD = 2500; // NRW ADK - Setting the period of the PWM signal to 20KHz, Which is calculated 50e6/20e3 = 2500
+    EPwm12Regs.CMPA.bit.CMPA = 0; // NRW ADK - Setting the initial start duty cycle to be at 0%
+    EPwm12Regs.AQCTLA.bit.ZRO = 2; // NRW ADK - Setting pin to be set when TBCTR register is zero
+    EPwm12Regs.AQCTLA.bit.CAU = 1; // NRW ADK - Setting signal pin be cleared when TBCTR reaches the value in CMPA
+    EPwm12Regs.TBPHS.bit.TBPHS = 0; // NRW ADK - Setting the phase to zero
 
     //EPwm2
-    EPwm2Regs.TBCTL.bit.CLKDIV = 0;
-    EPwm2Regs.TBCTL.bit.FREE_SOFT= 3;
-    EPwm2Regs.TBCTL.bit.CTRMODE = 0;
-    EPwm2Regs.TBCTL.bit.PHSEN = 0;
-    EPwm2Regs.TBCTR = 0;
-    EPwm2Regs.TBPRD = 2500; // NRW ADK
-    EPwm2Regs.CMPA.bit.CMPA = 0;
-    EPwm2Regs.CMPB.bit.CMPB = 0;
-    EPwm2Regs.AQCTLA.bit.ZRO = 2;
-    EPwm2Regs.AQCTLA.bit.CAU = 1;
-    EPwm2Regs.AQCTLB.bit.ZRO = 2;
-    EPwm2Regs.AQCTLB.bit.CBU = 1;
-    EPwm2Regs.TBPHS.bit.TBPHS = 0;
+    EPwm2Regs.TBCTL.bit.CLKDIV = 0; // NRW ADK - Setting to Clock divide by 1
+    EPwm2Regs.TBCTL.bit.FREE_SOFT= 3; // NRW ADK - Setting to Free Soft emulation mode to Free Run
+    EPwm2Regs.TBCTL.bit.CTRMODE = 0; // NRW ADK - Setting to phase loading disabled
+    EPwm2Regs.TBCTL.bit.PHSEN = 0; // NRW ADK - Setting to Starting the timer at zero
+    EPwm2Regs.TBCTR = 0; // NRW ADK - Setting to Starting the timer at zero
+    EPwm2Regs.TBPRD = 2500; // NRW ADK - Setting the period of the PWM signal to 20KHz, Which is calculated 50e6/20e3 = 2500
+    EPwm2Regs.CMPA.bit.CMPA = 0; // NRW ADK - Setting the initial start duty cycle to be at 0%
+    EPwm2Regs.CMPB.bit.CMPB = 0; // NRW ADK - Setting the initial start duty cycle to be at 0%
+    EPwm2Regs.AQCTLA.bit.ZRO = 2; // NRW ADK - Setting pin to be set when TBCTR register is zero
+    EPwm2Regs.AQCTLA.bit.CAU = 1; // NRW ADK - Setting signal pin be cleared when TBCTR reaches the value in CMPA
+    EPwm2Regs.AQCTLB.bit.ZRO = 2; // NRW ADK - Setting pin to be set when TBCTR register is zero
+    EPwm2Regs.AQCTLB.bit.CBU = 1; // NRW ADK - Setting signal pin be cleared when TBCTR reaches the value in CMPB
+    EPwm2Regs.TBPHS.bit.TBPHS = 0; // NRW ADK - Setting the phase to zero
 
     //EPwm8
-    EPwm8Regs.TBCTL.bit.CLKDIV = 4;// divide by 16 (100)
-    EPwm8Regs.TBCTL.bit.FREE_SOFT= 3;
-    EPwm8Regs.TBCTL.bit.CTRMODE = 0;
-    EPwm8Regs.TBCTL.bit.PHSEN = 0;
-    EPwm8Regs.TBCTR = 0;
-    EPwm8Regs.TBPRD = 62500; // NRW ADK  50Mhz/50hz/16
-    EPwm8Regs.CMPA.bit.CMPA = 5000;
-    EPwm8Regs.CMPB.bit.CMPB = 5000;
-    EPwm8Regs.AQCTLA.bit.ZRO = 2;
-    EPwm8Regs.AQCTLA.bit.CAU = 1;
-    EPwm8Regs.AQCTLB.bit.ZRO = 2;
-    EPwm8Regs.AQCTLB.bit.CBU = 1;
-    EPwm8Regs.TBPHS.bit.TBPHS = 0;
+    EPwm8Regs.TBCTL.bit.CLKDIV = 4;// NRW ADK - Setting to Clock divide by 16 (bin:100)
+    EPwm8Regs.TBCTL.bit.FREE_SOFT= 3; // NRW ADK - Setting to Free Soft emulation mode to Free Run
+    EPwm8Regs.TBCTL.bit.CTRMODE = 0; // NRW ADK - Setting to phase loading disabled
+    EPwm8Regs.TBCTL.bit.PHSEN = 0; // NRW ADK - Setting to Starting the timer at zero
+    EPwm8Regs.TBCTR = 0; // NRW ADK - Setting to Starting the timer at zero
+    EPwm8Regs.TBPRD = 62500; // NRW ADK - Setting the period of the PWM signal to 50Hz, Which is calculated 50e6/50/16 = 62500
+    // Note that the value initially obtained 50e6/50 = 100000 is out of range (65535) so that the number is divided by 16 (CLKDIV)
+    EPwm8Regs.CMPA.bit.CMPA = 5000; // NRW ADK - Setting the initial start duty cycle to be at 8%, 62500*0.08= 5000
+    EPwm8Regs.CMPB.bit.CMPB = 5000; // NRW ADK - Setting the initial start duty cycle to be at 8%, 62500*0.08= 5000
+    EPwm8Regs.AQCTLA.bit.ZRO = 2; // NRW ADK - Setting pin to be set when TBCTR register is zero
+    EPwm8Regs.AQCTLA.bit.CAU = 1; // NRW ADK - Setting signal pin be cleared when TBCTR reaches the value in CMPA
+    EPwm8Regs.AQCTLB.bit.ZRO = 2; // NRW ADK - Setting pin to be set when TBCTR register is zero
+    EPwm8Regs.AQCTLB.bit.CBU = 1; // NRW ADK - Setting signal pin be cleared when TBCTR reaches the value in CMPB
+    EPwm8Regs.TBPHS.bit.TBPHS = 0; // NRW ADK - Setting the phase to zero
 
     //EPwm9
-    EPwm9Regs.TBCTL.bit.CLKDIV = 1;
-    EPwm9Regs.TBCTL.bit.FREE_SOFT= 3;
-    EPwm9Regs.TBCTL.bit.CTRMODE = 0;
-    EPwm9Regs.TBCTL.bit.PHSEN = 0;
-    EPwm9Regs.TBCTR = 0;
-    EPwm9Regs.TBPRD = 2500; // NRW ADK
+    EPwm9Regs.TBCTL.bit.CLKDIV = 1; // NRW ADK - Setting to Clock divide by 2 (bin:10)
+    EPwm9Regs.TBCTL.bit.FREE_SOFT= 3; // NRW ADK - Setting to Free Soft emulation mode to Free Run
+    EPwm9Regs.TBCTL.bit.CTRMODE = 0; // NRW ADK - Setting to phase loading disabled
+    EPwm9Regs.TBCTL.bit.PHSEN = 0; // NRW ADK - Setting to Starting the timer at zero
+    EPwm9Regs.TBCTR = 0; // NRW ADK - Setting to Starting the timer at zero
+    EPwm9Regs.TBPRD = 2500; // NRW ADK - Setting the period of the PWM signal to 20KHz, Which is calculated 50e6/20e3 = 2500
     //EPwm9Regs.CMPA.bit.CMPA = 0;
-    EPwm9Regs.AQCTLA.bit.ZRO = 3;
-    EPwm9Regs.AQCTLA.bit.CAU = 0;
-    EPwm9Regs.TBPHS.bit.TBPHS = 0;
+    EPwm9Regs.AQCTLA.bit.ZRO = 3; // NRW ADK - Setting signal pin to be toggled low output will be forced high, high output will be forced lwo
+    EPwm9Regs.AQCTLA.bit.CAU = 0; // NRW ADK - Setting to be disabled
+    EPwm9Regs.TBPHS.bit.TBPHS = 0; // NRW ADK - Setting the phase to zero
 
-    //EPwm12 GPIO->PinMux
+    //NRW ADK - EPwm12A GPIO->PinMux, setting EPwm12A is used instead of GPIO22
     GPIO_SetupPinMux(22, GPIO_MUX_CPU1, 5);
+    //NRW ADK - EPwm12 GPIO->PinMux, setting SDAB pin is used instead of GPIO40
     GPIO_SetupPinMux(40, GPIO_MUX_CPU1, 6);
 
-    //EPwm2 GPIO->PinMux
+    //NRW ADK - EPwm2A GPIO->PinMux, setting EPwm2A is used instead of GPIO2
     GPIO_SetupPinMux(2, GPIO_MUX_CPU1, 1);
+    //NRW ADK - EPwm2B GPIO->PinMux, setting EPwm2B is used instead of GPIO3
     GPIO_SetupPinMux(3, GPIO_MUX_CPU1, 1);
 
-    //EPwm8 GPIO->PinMux
+    //NRW ADK - EPwm8A GPIO->PinMux, setting EPwm8A is used instead of GPIO14
     GPIO_SetupPinMux(14, GPIO_MUX_CPU1, 1);
+    //NRW ADK - EPwm8B GPIO->PinMux, setting EPwm8B is used instead of GPIO16
     GPIO_SetupPinMux(15, GPIO_MUX_CPU1, 1);
 
-    //EPwm9 GPIO->PinMux
+    //NRW ADK - EPwm9A GPIO->PinMux, setting EPwm9A is used instead of GPIO16
     GPIO_SetupPinMux(16, GPIO_MUX_CPU1, 5);
 
     EALLOW; // Below are protected registers
@@ -359,7 +365,7 @@ void main(void)
 
 //    init_serialSCIB(&SerialB,115200);
     init_serialSCIC(&SerialC,115200);
-    init_serialSCID(&SerialD,115200);
+    init_serialSCID(&SerialD,115200); //NRW ADK - Uncommented
 
     // Enable global Interrupts and higher priority real-time debug events
     EINT;  // Enable Global interrupt INTM
@@ -437,7 +443,7 @@ __interrupt void cpu_timer1_isr(void)
 void setEPWM2A(float controleffort)
 {
     uint16_t output;
-
+    //NRW ADK - Saturating the float variable controleffort within the range of (-10,10)
     if (controleffort < -10)
     {
         controleffort = -10;
@@ -446,9 +452,9 @@ void setEPWM2A(float controleffort)
     {
         controleffort = 10;
     }
-
+    //NRW ADK - linearly scaling the so that -10 is 0% DC, 0 is 50% DC and 10 is 100% DC
     output = (((controleffort) + 10.0)/20.0) * EPwm2Regs.TBPRD;
-
+    //NRW ADK - Setting so that the duty cycle
     EPwm2Regs.CMPA.bit.CMPA = output;
     return;
 }
@@ -457,7 +463,7 @@ void setEPWM2A(float controleffort)
 void setEPWM2B(float controleffort)
 {
     uint16_t output;
-
+    //NRW ADK - Saturating the float variable controleffort within the range of (-10,10)
     if (controleffort < -10)
     {
         controleffort = -10;
@@ -466,8 +472,8 @@ void setEPWM2B(float controleffort)
     {
         controleffort = 10;
     }
-
-    output = ((-(controleffort) + 10.0)/20.0) * EPwm2Regs.TBPRD;
+    //NRW ADK - linearly scaling the so that -10 is 0% DC, 0 is 50% DC and 10 is 100% DC
+    output = ((-(controleffort) + 10.0)/20.0) * EPwm2Regs.TBPRD; // NRW ADK negative(-) used to flip the rotation direction to match
 
     EPwm2Regs.CMPB.bit.CMPB = output;
     return;
@@ -476,7 +482,7 @@ void setEPWM2B(float controleffort)
 void setEPWM8A_RCServo(float angle)
 {
     uint16_t angout;
-
+    //NRW ADK - Saturating the float variable angle within the range of (-90,90)
     if (angle < -90)
     {
         angle = -90;
@@ -485,8 +491,8 @@ void setEPWM8A_RCServo(float angle)
     {
         angle = 90;
     }
-
-    angout = (((angle) + 90.0)/180.0) * EPwm8Regs.TBPRD*.08 + .04*EPwm8Regs.TBPRD; //NRW ADK - Normalizing
+    //NRW ADK - "Normalizing" the variable so that -90degrees is 4% DC, 0degrees is 8% DC and 90degrees is 12% DC
+    angout = (((angle) + 90.0)/180.0) * EPwm8Regs.TBPRD*.08 + .04*EPwm8Regs.TBPRD;
 
     EPwm8Regs.CMPA.bit.CMPA = angout;
 
@@ -495,7 +501,7 @@ void setEPWM8A_RCServo(float angle)
 void setEPWM8B_RCServo(float angle)
 {
     uint16_t angout;
-
+    //NRW ADK - Saturating the float variable angle within the range of (-90,90)
     if (angle < -90)
     {
         angle = -90;
@@ -504,7 +510,7 @@ void setEPWM8B_RCServo(float angle)
     {
         angle = 90;
     }
-
+    //NRW ADK - "Normalizing" the variable so that -90degrees is 4% DC, 0degrees is 8% DC and 90degrees is 12% DC
     angout = (((angle) + 90.0)/180.0) * EPwm8Regs.TBPRD*.08 + .04*EPwm8Regs.TBPRD;
 
     EPwm8Regs.CMPB.bit.CMPB = angout;
@@ -524,6 +530,8 @@ __interrupt void cpu_timer2_isr(void)
     if ((CpuTimer2.InterruptCount % 10) == 0) {
         UARTPrint = 1;
     }
+    // NRW ADK - flipping the incrementation so that the interrupt function gradually increases the command
+    // until 10 is reached and then switch gradually decreasing the command until the -10 is reached
     if (controleff <= -10.0)
     {
         Flip = 0;
@@ -544,7 +552,8 @@ __interrupt void cpu_timer2_isr(void)
         setEPWM2A(controleff);
         setEPWM2B(controleff);
     }
-    // NRW ADK
+    // NRW ADK - flipping the incrementation so that the interrupt function gradually increases the command
+    // until 90 is reached and then switch gradually decreasing the command until the -90 is reached
     if (angeff <= -90.0)
     {
         AFlip = 0;
